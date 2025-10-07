@@ -1,4 +1,4 @@
-.PHONY: fmt
+.PHONY: fmt build test
 
 fmt:
 	@echo "Formatting code..."
@@ -8,3 +8,7 @@ fmt:
 test:
 	@echo "Running tests..."
 	@cargo test --all-features
+
+build:
+	@echo "Building..."
+	@cargo build --all-features
