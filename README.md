@@ -2,6 +2,8 @@
 
 **Flexible, framework-agnostic Solana transaction signing for Rust applications**
 
+> ⚠️ **SECURITY NOTICE**: This library has not been audited. Use at your own risk. Not recommended for production use with real funds without a thorough security review. The authors and contributors are not responsible for any loss of funds or damages resulting from the use of this library.
+
 `solana-signers` provides a unified interface for signing Solana transactions with multiple backend implementations. Whether you need local keypairs for development, enterprise vault integration, or managed wallet services, this library offers a consistent API across all signing methods.
 
 ## Features
