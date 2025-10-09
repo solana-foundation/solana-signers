@@ -15,6 +15,11 @@ privy = ["dep:reqwest", "dep:base64"]
 turnkey = ["dep:reqwest", "dep:base64", "dep:p256", "dep:hex", "dep:chrono"]
 all = ["memory", "vault", "privy", "turnkey"]
 
+# WARNING: DO NOT ENABLE IN PRODUCTION
+# This feature logs full API error responses which may contain sensitive information
+# Only use for local development/debugging
+unsafe-debug = []
+
 [dependencies]
 # Solana SDK
 solana-sdk = "2.3.0"

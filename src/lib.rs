@@ -55,7 +55,6 @@ compile_error!(
 );
 
 /// Unified signer enum supporting multiple backends
-#[derive(Debug)]
 pub enum Signer {
     #[cfg(feature = "memory")]
     Memory(MemorySigner),

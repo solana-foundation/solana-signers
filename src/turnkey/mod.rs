@@ -96,10 +96,13 @@ impl TurnkeySigner {
                 .await
                 .unwrap_or_else(|_| "Failed to read error response".to_string());
 
+            #[cfg(feature = "unsafe-debug")]
             log::error!("Turnkey API error - status: {status}, response: {error_text}");
-            return Err(SignerError::RemoteApiError(format!(
-                "API error {status}: {error_text}"
-            )));
+
+            #[cfg(not(feature = "unsafe-debug"))]
+            log::error!("Turnkey API error - status: {status}");
+
+            return Err(SignerError::RemoteApiError(format!("API error {status}")));
         }
 
         let response_text = response.text().await?;

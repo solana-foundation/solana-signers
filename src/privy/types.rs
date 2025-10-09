@@ -15,14 +15,14 @@ pub struct SignTransactionParams {
     pub encoding: &'static str,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[allow(dead_code)]
 pub struct SignTransactionResponse {
     pub method: String,
     pub data: SignTransactionData,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[allow(dead_code)]
 pub struct SignTransactionData {
     #[serde(rename = "signed_transaction")]
@@ -31,7 +31,7 @@ pub struct SignTransactionData {
 }
 
 // Wallet info response
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[allow(dead_code)]
 pub struct WalletResponse {
     pub id: String,
