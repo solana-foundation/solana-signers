@@ -1,0 +1,19 @@
+{
+  "name": "@solana-signers/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:privy": "tsx test-privy.ts"
+  },
+  "dependencies": {
+    "@solana-signers/privy": "workspace:*"
+  },
+  "devDependencies": {
+    "@solana-program/memo": "^0.8.0",
+    "@solana/kit": "^4.0.0",
+    "@types/node": "^24.7.1",
+    "dotenv": "^17.2.3",
+    "tsx": "^4.20.6"
+  }
+}
