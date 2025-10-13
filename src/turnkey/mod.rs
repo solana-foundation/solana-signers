@@ -2,7 +2,8 @@
 
 mod types;
 
-use crate::{error::SignerError, traits::SolanaSigner};
+pub use crate::traits::SignedTransaction;
+use crate::{error::SignerError, traits::SolanaSigner, transaction_util::TransactionUtil};
 use base64::Engine;
 use p256::ecdsa::signature::Signer as P256Signer;
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
@@ -60,8 +61,8 @@ impl TurnkeySigner {
         })
     }
 
-    /// Sign a versioned transaction using Turnkey API
-    async fn sign(&self, message: &[u8]) -> Result<Signature, SignerError> {
+    /// Sign message bytes using Turnkey API and return just the signature
+    async fn sign_bytes(&self, message: &[u8]) -> Result<Signature, SignerError> {
         let hex_message = hex::encode(message);
 
         let request = SignRequest {
@@ -151,6 +152,20 @@ impl TurnkeySigner {
         ))
     }
 
+    async fn sign_and_serialize(
+        &self,
+        transaction: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        let signature = self.sign_bytes(&transaction.message_data()).await?;
+
+        TransactionUtil::add_signature_to_transaction(transaction, &self.public_key, signature)?;
+
+        Ok((
+            TransactionUtil::serialize_transaction(transaction)?,
+            signature,
+        ))
+    }
+
     /// Create X-Stamp header for Turnkey API authentication
     fn create_stamp(&self, message: &str) -> Result<String, SignerError> {
         let private_key_bytes = hex::decode(&self.api_private_key).map_err(|e| {
@@ -218,16 +233,22 @@ impl SolanaSigner for TurnkeySigner {
         self.public_key
     }
 
-    async fn sign_transaction(&self, tx: &mut Transaction) -> Result<Signature, SignerError> {
-        // Convert legacy transaction to versioned
-        let serialized = bincode::serialize(tx).map_err(|e| {
-            SignerError::SerializationError(format!("Failed to serialize transaction: {e}"))
-        })?;
-        self.sign(&serialized).await
+    async fn sign_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        self.sign_and_serialize(tx).await
     }
 
     async fn sign_message(&self, message: &[u8]) -> Result<Signature, SignerError> {
-        self.sign(message).await
+        self.sign_bytes(message).await
+    }
+
+    async fn sign_partial_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        self.sign_and_serialize(tx).await
     }
 
     async fn is_available(&self) -> bool {
@@ -239,6 +260,7 @@ impl SolanaSigner for TurnkeySigner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_util::create_test_transaction;
     use solana_sdk::{signature::Keypair, signer::Signer};
     use wiremock::{
         matchers::{header, method, path},
@@ -368,8 +390,10 @@ mod tests {
         let keypair = create_test_keypair();
         let (api_public_key, api_private_key) = create_test_api_keys();
 
-        // Create a signature
-        let signature = keypair.sign_message(&[1, 2, 3]);
+        let mut tx = create_test_transaction(&keypair);
+
+        // The signature that Turnkey API will return (signing the message_data)
+        let signature = keypair.sign_message(&tx.message_data());
         let sig_bytes = signature.as_ref();
 
         // Split into r and s
@@ -403,9 +427,15 @@ mod tests {
         .unwrap();
         signer.api_base_url = mock_server.uri();
 
-        let mut tx = Transaction::default();
         let result = signer.sign_transaction(&mut tx).await;
         assert!(result.is_ok());
+        let (serialized_tx, returned_sig) = result.unwrap();
+
+        // Verify the signature matches
+        assert_eq!(returned_sig, signature);
+
+        // Verify the transaction is properly serialized
+        assert!(!serialized_tx.is_empty());
     }
 
     #[tokio::test]

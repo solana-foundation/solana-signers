@@ -2,7 +2,8 @@
 
 mod types;
 
-use crate::{error::SignerError, traits::SolanaSigner};
+use crate::traits::SignedTransaction;
+use crate::{error::SignerError, traits::SolanaSigner, transaction_util::TransactionUtil};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
 use std::str::FromStr;
@@ -100,8 +101,8 @@ impl PrivySigner {
         })
     }
 
-    /// Sign a versioned transaction using Privy API
-    async fn sign(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
+    /// Sign message bytes using Privy API and return just the signature
+    async fn sign_bytes(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
         let url = format!("{}/wallets/{}/rpc", self.api_base_url, self.wallet_id);
 
         let request = SignTransactionRequest {
@@ -162,6 +163,20 @@ impl PrivySigner {
             SignerError::SigningFailed("No signature in signed transaction".to_string())
         })
     }
+
+    async fn sign_and_serialize(
+        &self,
+        transaction: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        let signature = self.sign_bytes(&transaction.message_data()).await?;
+
+        TransactionUtil::add_signature_to_transaction(transaction, &self.public_key, signature)?;
+
+        Ok((
+            TransactionUtil::serialize_transaction(transaction)?,
+            signature,
+        ))
+    }
 }
 
 #[async_trait::async_trait]
@@ -170,16 +185,22 @@ impl SolanaSigner for PrivySigner {
         self.public_key
     }
 
-    async fn sign_transaction(&self, tx: &mut Transaction) -> Result<Signature, SignerError> {
-        let serialized = bincode::serialize(tx).map_err(|e| {
-            SignerError::SerializationError(format!("Failed to serialize transaction: {e}"))
-        })?;
-
-        self.sign(&serialized).await
+    async fn sign_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        self.sign_and_serialize(tx).await
     }
 
     async fn sign_message(&self, message: &[u8]) -> Result<Signature, SignerError> {
-        self.sign(message).await
+        self.sign_bytes(message).await
+    }
+
+    async fn sign_partial_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        self.sign_and_serialize(tx).await
     }
 
     async fn is_available(&self) -> bool {
@@ -191,6 +212,7 @@ impl SolanaSigner for PrivySigner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_util::create_test_transaction;
     use solana_sdk::{signature::Keypair, signer::Signer};
     use wiremock::{
         matchers::{header, method, path},
@@ -295,21 +317,22 @@ mod tests {
         let mock_server = MockServer::start().await;
         let keypair = create_test_keypair();
 
-        // Create a signed transaction
-        let mut signed_tx = Transaction::default();
-        let signature = keypair.sign_message(&[1, 2, 3]);
-        signed_tx.signatures.push(signature);
+        let mut tx = create_test_transaction(&keypair);
 
-        let signed_tx_bytes = bincode::serialize(&signed_tx).unwrap();
-        let signed_tx_b64 = STANDARD.encode(&signed_tx_bytes);
+        // The signature that Privy API will return (signing the message_data)
+        let signature = keypair.sign_message(&tx.message_data());
 
-        // Mock the RPC signing endpoint
+        // Create a signed transaction to return from the mock
+        let mut signed_tx = tx.clone();
+        signed_tx.signatures = vec![signature];
+
+        // Mock the RPC signing endpoint - it returns the signed transaction
         Mock::given(method("POST"))
             .and(path("/wallets/test-wallet-id/rpc"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "method": "signTransaction",
                 "data": {
-                    "signed_transaction": signed_tx_b64,
+                    "signed_transaction": STANDARD.encode(bincode::serialize(&signed_tx).unwrap()),
                     "encoding": "base64"
                 }
             })))
@@ -325,10 +348,15 @@ mod tests {
         signer.api_base_url = mock_server.uri();
         signer.public_key = keypair.pubkey();
 
-        let mut tx = Transaction::default();
         let result = signer.sign_transaction(&mut tx).await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), signature);
+        let (serialized_tx, returned_sig) = result.unwrap();
+
+        // Verify the signature matches
+        assert_eq!(returned_sig, signature);
+
+        // Verify the transaction is properly serialized
+        assert!(!serialized_tx.is_empty());
     }
 
     #[tokio::test]

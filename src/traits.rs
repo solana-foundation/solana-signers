@@ -5,6 +5,8 @@ use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction}
 
 use crate::error::SignerError;
 
+pub type SignedTransaction = (String, Signature);
+
 /// Trait for signing Solana transactions
 ///
 /// All signer implementations must implement this trait to provide
@@ -22,8 +24,11 @@ pub trait SolanaSigner: Send + Sync {
     ///
     /// # Returns
     ///
-    /// The signature produced by signing the transaction
-    async fn sign_transaction(&self, tx: &mut Transaction) -> Result<Signature, SignerError>;
+    /// The base64 encoded transaction and signature
+    async fn sign_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError>;
 
     /// Sign an arbitrary message
     ///
@@ -35,6 +40,24 @@ pub trait SolanaSigner: Send + Sync {
     ///
     /// The signature produced by signing the message
     async fn sign_message(&self, message: &[u8]) -> Result<Signature, SignerError>;
+
+    /// Partially sign a transaction and return it as a base64-encoded string
+    ///
+    /// This method signs the transaction and serializes it with `requireAllSignatures: false`,
+    /// making it suitable for multi-signature workflows where additional signatures will be
+    /// added later.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx` - The transaction to sign (will be modified in place)
+    ///
+    /// # Returns
+    ///
+    /// Base64-encoded partially-signed transaction
+    async fn sign_partial_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError>;
 
     /// Check if the signer is available and healthy
     ///
