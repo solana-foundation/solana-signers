@@ -22,13 +22,12 @@ export interface SolanaSigner<TAddress extends string = string>
     /**
      * Check if the signer is available and healthy.
      * For remote signers (Vault, Privy, Turnkey), this performs an API health check.
-     * For local signers (Memory), this always returns true.
      */
     isAvailable(): Promise<boolean>;
 
     /**
-     * Signs multiple messages and returns signature dictionaries.
-     * This is the low-level API for @solana/kit ecosystem compatibility.
+     * Signs multiple messages and returns signature dictionaries
+     * for @solana/kit signing compatibility.
      *
      * @param messages - Array of signable messages
      * @returns Array of signature dictionaries (address -> signature mapping)
@@ -37,8 +36,7 @@ export interface SolanaSigner<TAddress extends string = string>
 
     /**
      * Signs multiple transactions and returns signature dictionaries.
-     * This is the low-level API for @solana/kit ecosystem compatibility (e.g signing with partiallySignTransactionMessageWithSigners)
-     *
+     * for @solana/kit signing compatibility.
      *
      * @param transactions - Array of transactions to sign
      * @returns Array of signature dictionaries (address -> signature mapping)
@@ -46,12 +44,4 @@ export interface SolanaSigner<TAddress extends string = string>
     signTransactions(
         transactions: readonly (Transaction & TransactionWithinSizeLimit & TransactionWithLifetime)[],
     ): Promise<readonly SignatureDictionary[]>;
-}
-
-/**
- * Configuration interface for creating signers
- */
-export interface SignerConfig {
-    /** Optional abort signal for cancelling operations */
-    abortSignal?: AbortSignal;
 }

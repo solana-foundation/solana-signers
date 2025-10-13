@@ -31,20 +31,20 @@ import {
  * Configuration for creating a PrivySigner
  */
 export interface PrivySignerConfig {
-    /** Optional custom API base URL (defaults to https://api.privy.io/v1) */
-    apiBaseUrl?: string;
     /** Privy application ID */
     appId: string;
     /** Privy application secret */
     appSecret: string;
     /** Privy wallet ID */
     walletId: string;
+    /** Optional custom API base URL (defaults to https://api.privy.io/v1) */
+    apiBaseUrl?: string;
 }
 
 /**
  * Privy-based signer using Privy's wallet API
  *
- * Note: Must call init() after construction to fetch the public key
+ * Note: Must initialize with create() to fetch the public key
  */
 export class PrivySigner<TAddress extends string = string> implements SolanaSigner<TAddress> {
     readonly address!: Address<TAddress>;
@@ -117,6 +117,11 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         return walletInfo.address;
     }
 
+    /**
+     * Get the signature bytes from a base64 encoded signature
+     * @param signature - The base64 encoded signature
+     * @returns The signature bytes
+     */
     private getSignatureBytes(signature: SignatureBytesBase64): SignatureBytes {
         const encoder = getBase64Encoder();
         const signatureBytes = encoder.encode(signature) as SignatureBytes;
@@ -164,6 +169,11 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         return signResponse.data.signed_transaction;
     }
 
+    /**
+     * Sign a base64 encoded message using Privy API
+     * @param base64EncodedMessage - The base64 encoded message to sign
+     * @returns The signature bytes
+     */
     private async signMessage(base64EncodedMessage: TransactionMessageBytesBase64): Promise<SignatureBytes> {
         const url = `${this.apiBaseUrl}/wallets/${this.walletId}/rpc`;
 
@@ -198,10 +208,11 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         return this.getSignatureBytes(signResponse.data.signature);
     }
 
-    // ============================================================================
-    // Low-level API (@solana/kit compatibility)
-    // ============================================================================
-
+    /**
+     * Sign multiple messages using Privy API 
+     * @param messages - The messages to sign
+     * @returns The signature dictionaries
+     */
     async signMessages(messages: readonly SignableMessage[]): Promise<readonly SignatureDictionary[]> {
         return await Promise.all(
             messages.map(async message => {
@@ -217,6 +228,11 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         );
     }
 
+    /**
+     * Sign multiple transactions using Privy API
+     * @param transactions - The transactions to sign
+     * @returns The signature dictionaries
+     */
     async signTransactions(
         transactions: readonly (Transaction & TransactionWithinSizeLimit & TransactionWithLifetime)[],
     ): Promise<readonly SignatureDictionary[]> {
@@ -232,6 +248,10 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         );
     }
 
+    /**
+     * Check if the Privy signer is available
+     * @returns True if the Privy signer is available, false otherwise
+     */
     async isAvailable(): Promise<boolean> {
         if (!this.initialized) {
             return false;

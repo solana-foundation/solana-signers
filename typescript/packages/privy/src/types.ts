@@ -1,5 +1,6 @@
 /**
  * Privy API request/response types
+ * Docs: https://docs.privy.io/api-reference/wallets/solana/
  */
 
 import { Address } from '@solana/addresses';

@@ -78,25 +78,7 @@ Creates and initializes a new PrivySigner instance.
 
 ## Security Notes
 
-⚠️ **Important**:
-
 - Store your `appSecret` securely (use environment variables)
 - Never expose your `appSecret` in client-side code
 - This signer is intended for server-side use or secure environments
 - Privy handles key management - your private keys never leave Privy's infrastructure
-
-## Error Handling
-
-```typescript
-import { SignerErrorCode } from '@solana-signers/core';
-
-try {
-    const signer = await PrivySigner.create(config);
-} catch (error) {
-    if (error.code === SignerErrorCode.REMOTE_API_ERROR) {
-        console.error('Privy API error:', error.message);
-    } else if (error.code === SignerErrorCode.INVALID_PUBLIC_KEY) {
-        console.error('Invalid wallet configuration');
-    }
-}
-```
