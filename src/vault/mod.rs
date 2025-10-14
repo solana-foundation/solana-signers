@@ -1,6 +1,7 @@
 //! HashiCorp Vault signer integration
 
-use crate::{error::SignerError, traits::SolanaSigner};
+use crate::traits::SignedTransaction;
+use crate::{error::SignerError, traits::SolanaSigner, transaction_util::TransactionUtil};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
 use std::sync::Arc;
@@ -71,7 +72,7 @@ impl VaultSigner {
         })
     }
 
-    pub async fn sign(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
+    async fn sign_bytes(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
         let signature = transit::data::sign(
             self.client.as_ref(),
             "transit",
@@ -89,6 +90,20 @@ impl VaultSigner {
         Signature::try_from(sig_bytes.as_slice())
             .map_err(|e| SignerError::SigningFailed(format!("Invalid signature format: {e}")))
     }
+
+    async fn sign_and_serialize(
+        &self,
+        transaction: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        let signature = self.sign_bytes(&transaction.message_data()).await?;
+
+        TransactionUtil::add_signature_to_transaction(transaction, &self.pubkey, signature)?;
+
+        Ok((
+            TransactionUtil::serialize_transaction(transaction)?,
+            signature,
+        ))
+    }
 }
 
 #[async_trait::async_trait]
@@ -97,15 +112,22 @@ impl SolanaSigner for VaultSigner {
         self.pubkey
     }
 
-    async fn sign_transaction(&self, tx: &mut Transaction) -> Result<Signature, SignerError> {
-        let serialized = bincode::serialize(tx).map_err(|e| {
-            SignerError::SerializationError(format!("Failed to serialize transaction: {e}"))
-        })?;
-        self.sign(&serialized).await
+    async fn sign_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        self.sign_and_serialize(tx).await
     }
 
     async fn sign_message(&self, message: &[u8]) -> Result<Signature, SignerError> {
-        self.sign(message).await
+        self.sign_bytes(message).await
+    }
+
+    async fn sign_partial_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        self.sign_and_serialize(tx).await
     }
 
     async fn is_available(&self) -> bool {

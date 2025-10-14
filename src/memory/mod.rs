@@ -2,7 +2,12 @@
 
 mod keypair_util;
 
-use crate::{error::SignerError, traits::SolanaSigner};
+use crate::{
+    error::SignerError,
+    traits::{SignedTransaction, SolanaSigner},
+    transaction_util::TransactionUtil,
+};
+
 use keypair_util::KeypairUtil;
 use solana_sdk::{
     pubkey::Pubkey,
@@ -47,9 +52,8 @@ impl MemorySigner {
         Ok(Self::new(keypair))
     }
 
-    pub async fn sign(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
-        let signature = self.keypair.sign_message(serialized);
-        Ok(signature)
+    async fn sign_bytes(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
+        Ok(self.keypair.sign_message(serialized))
     }
 }
 
@@ -59,15 +63,32 @@ impl SolanaSigner for MemorySigner {
         self.keypair.pubkey()
     }
 
-    async fn sign_transaction(&self, tx: &mut Transaction) -> Result<Signature, SignerError> {
-        let serialized = bincode::serialize(tx).map_err(|e| {
-            SignerError::SerializationError(format!("Failed to serialize transaction: {e}"))
-        })?;
-        self.sign(&serialized).await
+    async fn sign_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        // Get actual signature
+        let signature = self.sign_bytes(&tx.message_data()).await?;
+
+        // Sign actual transaction
+        tx.sign(&[&self.keypair], tx.message().recent_blockhash);
+
+        Ok((TransactionUtil::serialize_transaction(tx)?, signature))
     }
 
     async fn sign_message(&self, message: &[u8]) -> Result<Signature, SignerError> {
-        self.sign(message).await
+        self.sign_bytes(message).await
+    }
+
+    async fn sign_partial_transaction(
+        &self,
+        tx: &mut Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        let signature = self.sign_bytes(&tx.message_data()).await?;
+
+        tx.partial_sign(&[&self.keypair], tx.message().recent_blockhash);
+
+        Ok((TransactionUtil::serialize_transaction(tx)?, signature))
     }
 
     async fn is_available(&self) -> bool {
@@ -78,6 +99,8 @@ impl SolanaSigner for MemorySigner {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_util::create_test_transaction;
+
     use super::*;
 
     const TEST_KEYPAIR_BYTES: &str = "[41,99,180,88,51,57,48,80,61,63,219,75,176,49,116,254,227,176,196,204,122,47,166,133,155,252,217,0,253,17,49,143,47,94,121,167,195,136,72,22,157,48,77,88,63,96,57,122,181,243,236,188,241,134,174,224,100,246,17,170,104,17,151,48]";
@@ -117,5 +140,49 @@ mod tests {
     async fn test_is_available() {
         let signer = create_test_signer();
         assert!(signer.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn test_sign_transaction() {
+        let signer = create_test_signer();
+
+        let mut tx = create_test_transaction(&signer.keypair);
+
+        let result = signer.sign_transaction(&mut tx).await;
+        assert!(result.is_ok());
+
+        let (serialized_tx, signature) = result.unwrap();
+
+        // Verify the signature is valid
+        assert_eq!(signature.as_ref().len(), 64);
+
+        // Verify the transaction is properly serialized
+        assert!(!serialized_tx.is_empty());
+
+        // Verify the transaction has the signature
+        assert_eq!(tx.signatures.len(), 1);
+        assert_eq!(tx.signatures[0], signature);
+    }
+
+    #[tokio::test]
+    async fn test_sign_partial_transaction() {
+        let signer = create_test_signer();
+
+        let mut tx = create_test_transaction(&signer.keypair);
+
+        let result = signer.sign_partial_transaction(&mut tx).await;
+        assert!(result.is_ok());
+
+        let (serialized_tx, signature) = result.unwrap();
+
+        // Verify the signature is valid
+        assert_eq!(signature.as_ref().len(), 64);
+
+        // Verify the transaction is properly serialized
+        assert!(!serialized_tx.is_empty());
+
+        // Verify the transaction has the signature
+        assert_eq!(tx.signatures.len(), 1);
+        assert_eq!(tx.signatures[0], signature);
     }
 }

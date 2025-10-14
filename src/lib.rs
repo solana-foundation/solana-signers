@@ -12,7 +12,10 @@
 //! - `all`: Enable all signer backends
 
 pub mod error;
+#[cfg(test)]
+pub mod test_util;
 pub mod traits;
+pub mod transaction_util;
 
 #[cfg(feature = "memory")]
 pub mod memory;
@@ -42,6 +45,8 @@ pub use privy::PrivySigner;
 
 #[cfg(feature = "turnkey")]
 pub use turnkey::TurnkeySigner;
+
+use crate::traits::SignedTransaction;
 
 // Ensure at least one signer backend is enabled
 #[cfg(not(any(
@@ -146,7 +151,7 @@ impl SolanaSigner for Signer {
     async fn sign_transaction(
         &self,
         tx: &mut solana_sdk::transaction::Transaction,
-    ) -> Result<solana_sdk::signature::Signature, SignerError> {
+    ) -> Result<SignedTransaction, SignerError> {
         match self {
             #[cfg(feature = "memory")]
             Signer::Memory(s) => s.sign_transaction(tx).await,
@@ -178,6 +183,25 @@ impl SolanaSigner for Signer {
 
             #[cfg(feature = "turnkey")]
             Signer::Turnkey(s) => s.sign_message(message).await,
+        }
+    }
+
+    async fn sign_partial_transaction(
+        &self,
+        tx: &mut solana_sdk::transaction::Transaction,
+    ) -> Result<SignedTransaction, SignerError> {
+        match self {
+            #[cfg(feature = "memory")]
+            Signer::Memory(s) => s.sign_partial_transaction(tx).await,
+
+            #[cfg(feature = "vault")]
+            Signer::Vault(s) => s.sign_partial_transaction(tx).await,
+
+            #[cfg(feature = "privy")]
+            Signer::Privy(s) => s.sign_partial_transaction(tx).await,
+
+            #[cfg(feature = "turnkey")]
+            Signer::Turnkey(s) => s.sign_partial_transaction(tx).await,
         }
     }
 
