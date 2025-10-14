@@ -3,7 +3,7 @@
 mod types;
 
 use crate::traits::SignedTransaction;
-use crate::{error::SignerError, traits::SolanaSigner, transaction_util::TransactionUtil};
+use crate::{error::SignerError, traits::SolanaSigner};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
 use std::str::FromStr;
@@ -101,8 +101,8 @@ impl PrivySigner {
         })
     }
 
-    /// Sign message bytes using Privy API and return just the signature
-    async fn sign_bytes(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
+    /// Sign message bytes using Privy API
+    async fn sign_bytes(&self, serialized: &[u8]) -> Result<SignedTransaction, SignerError> {
         let url = format!("{}/wallets/{}/rpc", self.api_base_url, self.wallet_id);
 
         let request = SignTransactionRequest {
@@ -158,24 +158,33 @@ impl PrivySigner {
             ))
         })?;
 
-        // Get the first signature (which should be the one we just created)
-        signed_tx.signatures.first().copied().ok_or_else(|| {
-            SignerError::SigningFailed("No signature in signed transaction".to_string())
-        })
+        // Find the signature index that matches our public key
+        let signer_index = signed_tx
+            .message
+            .account_keys
+            .iter()
+            .position(|key| key == &self.public_key)
+            .ok_or_else(|| {
+                SignerError::SigningFailed("Signer public key not found in transaction".to_string())
+            })?;
+
+        // Get the signature at that index
+        let signature = signed_tx
+            .signatures
+            .get(signer_index)
+            .copied()
+            .ok_or_else(|| {
+                SignerError::SigningFailed("No signature found for signer public key".to_string())
+            })?;
+
+        Ok((sign_response.data.signed_transaction, signature))
     }
 
     async fn sign_and_serialize(
         &self,
         transaction: &mut Transaction,
     ) -> Result<SignedTransaction, SignerError> {
-        let signature = self.sign_bytes(&transaction.message_data()).await?;
-
-        TransactionUtil::add_signature_to_transaction(transaction, &self.public_key, signature)?;
-
-        Ok((
-            TransactionUtil::serialize_transaction(transaction)?,
-            signature,
-        ))
+        self.sign_bytes(&transaction.message_data()).await
     }
 }
 
@@ -193,7 +202,9 @@ impl SolanaSigner for PrivySigner {
     }
 
     async fn sign_message(&self, message: &[u8]) -> Result<Signature, SignerError> {
-        self.sign_bytes(message).await
+        self.sign_bytes(message)
+            .await
+            .map(|(_, signature)| signature)
     }
 
     async fn sign_partial_transaction(
@@ -277,12 +288,13 @@ mod tests {
         let keypair = create_test_keypair();
 
         // Create a signed transaction
-        let mut tx = Transaction::default();
-        let message = b"test message";
-        let signature = keypair.sign_message(message);
-        tx.signatures.push(signature);
+        let tx = create_test_transaction(&keypair);
+        let signature = keypair.sign_message(&tx.message_data());
 
-        let signed_tx_bytes = bincode::serialize(&tx).unwrap();
+        let mut signed_tx = tx.clone();
+        signed_tx.signatures = vec![signature];
+
+        let signed_tx_bytes = bincode::serialize(&signed_tx).unwrap();
         let signed_tx_b64 = STANDARD.encode(&signed_tx_bytes);
 
         // Mock the RPC signing endpoint
@@ -307,7 +319,7 @@ mod tests {
         signer.api_base_url = mock_server.uri();
         signer.public_key = keypair.pubkey();
 
-        let result = signer.sign_message(message).await;
+        let result = signer.sign_message(&tx.message_data()).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), signature);
     }
