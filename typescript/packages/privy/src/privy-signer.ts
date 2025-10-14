@@ -102,6 +102,12 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         }
     }
 
+    private async delay(index: number): Promise<void> {
+        if (this.requestDelayMs > 0 && index > 0) {
+            await new Promise(resolve => setTimeout(resolve, index * this.requestDelayMs));
+        }
+    }
+
     /**
      * Get the Basic Auth header value
      */
@@ -311,10 +317,7 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
     async signMessages(messages: readonly SignableMessage[]): Promise<readonly SignatureDictionary[]> {
         return await Promise.all(
             messages.map(async (message, index) => {
-                // Optionally stagger requests to avoid rate limits
-                if (index > 0 && this.requestDelayMs > 0) {
-                    await new Promise(resolve => setTimeout(resolve, index * this.requestDelayMs));
-                }
+                await this.delay(index);
                 const base64EncodedMessage = getBase64Decoder().decode(
                     message.content,
                 ) as TransactionMessageBytesBase64;
@@ -337,10 +340,7 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
     ): Promise<readonly SignatureDictionary[]> {
         return await Promise.all(
             transactions.map(async (transaction, index) => {
-                // Optionally stagger requests to avoid rate limits
-                if (index > 0 && this.requestDelayMs > 0) {
-                    await new Promise(resolve => setTimeout(resolve, index * this.requestDelayMs));
-                }
+                await this.delay(index);
                 const wireTransaction = getBase64EncodedWireTransaction(transaction);
                 const signedTx = await this.signTransaction(wireTransaction);
                 return extractSignatureFromWireTransaction({

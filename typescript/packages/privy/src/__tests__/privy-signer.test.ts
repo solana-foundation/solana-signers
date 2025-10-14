@@ -76,6 +76,9 @@ describe('PrivySigner', () => {
             const signer = await PrivySigner.create(mockConfig);
 
             expect(signer.address).toBeTruthy();
+            expect(signer.signMessages).toBeDefined();
+            expect(signer.signTransactions).toBeDefined();
+            expect(signer.isAvailable).toBeDefined();
             expect(typeof signer.address).toBe('string');
             assertIsSolanaSigner(signer);
         });

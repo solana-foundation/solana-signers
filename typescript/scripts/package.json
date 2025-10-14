@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:privy": "tsx test-privy.ts"
+    "test:privy": "SIGNER_TYPE=privy tsx test-signer.ts",
+    "test:turnkey": "SIGNER_TYPE=turnkey tsx test-signer.ts"
   },
   "dependencies": {
     "@solana-signers/privy": "workspace:*",
+    "@solana-signers/turnkey": "workspace:*",
     "@solana-signers/core": "workspace:*"
   },
   "devDependencies": {

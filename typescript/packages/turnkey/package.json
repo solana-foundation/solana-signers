@@ -1,0 +1,50 @@
+{
+    "name": "@solana-signers/turnkey",
+    "author": "Solana Foundation",
+    "version": "0.1.0",
+    "description": "Turnkey-based signer for Solana transactions",
+    "license": "MIT",
+    "repository": "https://github.com/solana-foundation/solana-signers",
+    "keywords": [
+        "solana",
+        "signing",
+        "wallet",
+        "privy",
+        "vault",
+        "turnkey"
+    ],
+    "type": "module",
+    "sideEffects": false,
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "tsc --build",
+        "clean": "rm -rf dist *.tsbuildinfo",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@noble/curves": "^2.0.1",
+        "@solana-signers/core": "workspace:*",
+        "@solana/addresses": "^4.0.0",
+        "@solana/codecs-core": "^4.0.0",
+        "@solana/codecs-strings": "^4.0.0",
+        "@solana/keys": "^4.0.0",
+        "@solana/signers": "^4.0.0",
+        "@solana/transactions": "^4.0.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
