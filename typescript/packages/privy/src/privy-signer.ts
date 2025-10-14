@@ -37,6 +37,8 @@ export interface PrivySignerConfig {
     appId: string;
     /** Privy application secret */
     appSecret: string;
+    /** Optional delay in ms between concurrent signing requests to avoid rate limits (default: 0) */
+    requestDelayMs?: number;
     /** Privy wallet ID */
     walletId: string;
 }
@@ -52,6 +54,7 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
     private readonly appSecret: string;
     private readonly walletId: string;
     private readonly apiBaseUrl: string;
+    private readonly requestDelayMs: number;
     private initialized: boolean = false;
 
     private constructor(config: PrivySignerConfig) {
@@ -64,6 +67,8 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         this.appSecret = config.appSecret;
         this.walletId = config.walletId;
         this.apiBaseUrl = config.apiBaseUrl || 'https://api.privy.io/v1';
+        this.requestDelayMs = config.requestDelayMs ?? 0;
+        this.validateRequestDelayMs(this.requestDelayMs);
     }
 
     /**
@@ -82,6 +87,19 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         });
         signer.initialized = true;
         return signer;
+    }
+
+    private validateRequestDelayMs(requestDelayMs: number): void {
+        if (requestDelayMs < 0) {
+            throwSignerError(SignerErrorCode.CONFIG_ERROR, {
+                message: 'requestDelayMs must not be negative',
+            });
+        }
+        if (requestDelayMs > 3000) {
+            console.warn(
+                'requestDelayMs is greater than 3000ms, this may result in blockhash expiration errors for signing messages/transactions',
+            );
+        }
     }
 
     /**
@@ -292,7 +310,11 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
      */
     async signMessages(messages: readonly SignableMessage[]): Promise<readonly SignatureDictionary[]> {
         return await Promise.all(
-            messages.map(async message => {
+            messages.map(async (message, index) => {
+                // Optionally stagger requests to avoid rate limits
+                if (index > 0 && this.requestDelayMs > 0) {
+                    await new Promise(resolve => setTimeout(resolve, index * this.requestDelayMs));
+                }
                 const base64EncodedMessage = getBase64Decoder().decode(
                     message.content,
                 ) as TransactionMessageBytesBase64;
@@ -314,7 +336,11 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
         transactions: readonly (Transaction & TransactionWithinSizeLimit & TransactionWithLifetime)[],
     ): Promise<readonly SignatureDictionary[]> {
         return await Promise.all(
-            transactions.map(async transaction => {
+            transactions.map(async (transaction, index) => {
+                // Optionally stagger requests to avoid rate limits
+                if (index > 0 && this.requestDelayMs > 0) {
+                    await new Promise(resolve => setTimeout(resolve, index * this.requestDelayMs));
+                }
                 const wireTransaction = getBase64EncodedWireTransaction(transaction);
                 const signedTx = await this.signTransaction(wireTransaction);
                 return extractSignatureFromWireTransaction({

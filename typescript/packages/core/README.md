@@ -104,3 +104,21 @@ class MyCustomSigner implements SolanaSigner {
     }
 }
 ```
+
+## Type Guards
+
+**`isSolanaSigner`** - Check if a value is a SolanaSigner:
+
+```typescript
+import { isSolanaSigner } from '@solana-signers/core';
+
+const isSigner = isSolanaSigner(value); // true or false
+```
+
+**`assertIsSolanaSigner`** - Assert that a value is a SolanaSigner:
+
+```typescript
+import { assertIsSolanaSigner } from '@solana-signers/core';
+
+assertIsSolanaSigner(value); // void (throws if not a SolanaSigner)
+```

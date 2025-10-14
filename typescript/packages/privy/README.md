@@ -60,6 +60,9 @@ Creates and initializes a new PrivySigner instance.
 - `appSecret` (string, required): Your Privy application secret
 - `walletId` (string, required): The Privy wallet ID to use for signing
 - `apiBaseUrl` (string, optional): Custom API base URL (defaults to `https://api.privy.io/v1`)
+- `requestDelayMs` (number, optional): Delay in ms between concurrent signing requests to avoid rate limits (default: 0)
+
+**Example:**
 
 **Returns:** `Promise<PrivySigner>`
 

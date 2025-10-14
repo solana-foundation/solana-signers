@@ -1,5 +1,4 @@
 import { generateKeyPair, signBytes } from '@solana/keys';
-import { Brand, EncodedString } from '@solana/nominal-types';
 import { createSignableMessage, createSignerFromKeyPair, generateKeyPairSigner } from '@solana/signers';
 import {
     Base64EncodedWireTransaction,
@@ -12,16 +11,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PrivySigner } from '../privy-signer.js';
 
-// Mock fetch globally
 global.fetch = vi.fn();
 
-export type Blockhash = Brand<EncodedString<string, 'base58'>, 'Blockhash'>;
-
-// Sample base64 wire transaction for testing
 const MOCK_B64_WIRE_TX =
     'Af1fCRSrZ9ASprap8D3ZLPsbzeCs6uihvj/jfjm3UrAY72by5zKMRd7YAIbJCl9gyRHQbw+xdklET2ZNmZi3iA2AAQABAurnRuGN5bfL2osZZMdGlvL1qz8k0GbdLhiP1fICgkmsBUpTWpkpIQZNJOhxYNo4fHw1td28kruB5B+oQEEFRI1NhzEgE0w/YfwaeZi2Ns/mLoZvq2Sx5NVQg7Am7wrjGwEBAAxIZWxsbywgUHJpdnkA' as Base64EncodedWireTransaction;
 
-// Mock the transaction encoding function
 vi.mock('@solana/transactions', async () => {
     const actual = await vi.importActual<typeof import('@solana/transactions')>('@solana/transactions');
     return {
@@ -30,7 +24,6 @@ vi.mock('@solana/transactions', async () => {
     };
 });
 
-// Helper to create a mock transaction without needing real transaction building
 const createMockTransaction = (): Transaction & TransactionWithinSizeLimit & TransactionWithLifetime => {
     return {} as Transaction & TransactionWithinSizeLimit & TransactionWithLifetime;
 };
@@ -118,7 +111,6 @@ describe('PrivySigner', () => {
                 const invalidConfig = { ...mockConfig, appId: '' };
                 await expect(PrivySigner.create(invalidConfig)).rejects.toMatchObject({
                     code: 'SIGNER_CONFIG_ERROR',
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                     message: expect.stringContaining('Missing required configuration fields'),
                 });
             });
@@ -127,7 +119,6 @@ describe('PrivySigner', () => {
                 const invalidConfig = { ...mockConfig, appSecret: '' };
                 await expect(PrivySigner.create(invalidConfig)).rejects.toMatchObject({
                     code: 'SIGNER_CONFIG_ERROR',
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                     message: expect.stringContaining('Missing required configuration fields'),
                 });
             });
@@ -136,7 +127,6 @@ describe('PrivySigner', () => {
                 const invalidConfig = { ...mockConfig, walletId: '' };
                 await expect(PrivySigner.create(invalidConfig)).rejects.toMatchObject({
                     code: 'SIGNER_CONFIG_ERROR',
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                     message: expect.stringContaining('Missing required configuration fields'),
                 });
             });
@@ -148,7 +138,6 @@ describe('PrivySigner', () => {
 
                 await expect(PrivySigner.create(mockConfig)).rejects.toMatchObject({
                     code: 'SIGNER_HTTP_ERROR',
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                     message: expect.stringContaining('Privy network request failed'),
                 });
             });
@@ -164,7 +153,6 @@ describe('PrivySigner', () => {
 
                 await expect(PrivySigner.create(mockConfig)).rejects.toMatchObject({
                     code: 'SIGNER_PARSING_ERROR',
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                     message: expect.stringContaining('Failed to parse Privy response'),
                 });
             });
@@ -185,7 +173,6 @@ describe('PrivySigner', () => {
 
                 await expect(PrivySigner.create(mockConfig)).rejects.toMatchObject({
                     code: 'SIGNER_REMOTE_API_ERROR',
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                     message: expect.stringContaining('Missing address in Privy wallet response'),
                 });
             });
@@ -224,7 +211,6 @@ describe('PrivySigner', () => {
             const message = createSignableMessage(new Uint8Array([1, 2, 3, 4]));
             await expect(signer.signMessages([message])).rejects.toMatchObject({
                 code: 'SIGNER_HTTP_ERROR',
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 message: expect.stringContaining('Privy network request failed'),
             });
         });
@@ -243,7 +229,6 @@ describe('PrivySigner', () => {
             const message = createSignableMessage(new Uint8Array([1, 2, 3, 4]));
             await expect(signer.signMessages([message])).rejects.toMatchObject({
                 code: 'SIGNER_PARSING_ERROR',
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 message: expect.stringContaining('Failed to parse Privy signing response'),
             });
         });
@@ -269,7 +254,6 @@ describe('PrivySigner', () => {
             const message = createSignableMessage(new Uint8Array([1, 2, 3, 4]));
             await expect(signer.signMessages([message])).rejects.toMatchObject({
                 code: 'SIGNER_REMOTE_API_ERROR',
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 message: expect.stringContaining('Missing signature in Privy response'),
             });
         });
@@ -305,7 +289,6 @@ describe('PrivySigner', () => {
 
             await expect(signer.signTransactions([mockTx])).rejects.toMatchObject({
                 code: 'SIGNER_HTTP_ERROR',
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 message: expect.stringContaining('Privy network request failed'),
             });
         });
@@ -325,7 +308,6 @@ describe('PrivySigner', () => {
 
             await expect(signer.signTransactions([mockTx])).rejects.toMatchObject({
                 code: 'SIGNER_PARSING_ERROR',
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 message: expect.stringContaining('Failed to parse Privy signing response'),
             });
         });
@@ -352,7 +334,6 @@ describe('PrivySigner', () => {
 
             await expect(signer.signTransactions([mockTx])).rejects.toMatchObject({
                 code: 'SIGNER_REMOTE_API_ERROR',
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 message: expect.stringContaining('Missing signed_transaction in Privy response'),
             });
         });
