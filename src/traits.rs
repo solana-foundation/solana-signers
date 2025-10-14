@@ -1,9 +1,9 @@
 //! Core trait definitions for Solana signers
 
 use async_trait::async_trait;
-use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
 
 use crate::error::SignerError;
+use crate::sdk_adapter::{Pubkey, Signature, Transaction};
 
 pub type SignedTransaction = (String, Signature);
 

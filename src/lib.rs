@@ -5,13 +5,21 @@
 //!
 //! # Features
 //!
+//! ## Signer Backends
 //! - `memory` (default): Local keypair signing
 //! - `vault`: HashiCorp Vault integration
 //! - `privy`: Privy API integration
 //! - `turnkey`: Turnkey API integration
 //! - `all`: Enable all signer backends
+//!
+//! ## SDK Version Selection
+//! - `sdk-v2` (default): Use Solana SDK v2.3.x
+//! - `sdk-v3`: Use Solana SDK v3.x
+//!
+//! **Note**: Only one SDK version can be enabled at a time.
 
 pub mod error;
+mod sdk_adapter;
 #[cfg(test)]
 pub mod test_util;
 pub mod traits;
@@ -132,7 +140,7 @@ impl Signer {
 
 #[async_trait::async_trait]
 impl SolanaSigner for Signer {
-    fn pubkey(&self) -> solana_sdk::pubkey::Pubkey {
+    fn pubkey(&self) -> sdk_adapter::Pubkey {
         match self {
             #[cfg(feature = "memory")]
             Signer::Memory(s) => s.pubkey(),
@@ -150,7 +158,7 @@ impl SolanaSigner for Signer {
 
     async fn sign_transaction(
         &self,
-        tx: &mut solana_sdk::transaction::Transaction,
+        tx: &mut sdk_adapter::Transaction,
     ) -> Result<SignedTransaction, SignerError> {
         match self {
             #[cfg(feature = "memory")]
@@ -167,10 +175,7 @@ impl SolanaSigner for Signer {
         }
     }
 
-    async fn sign_message(
-        &self,
-        message: &[u8],
-    ) -> Result<solana_sdk::signature::Signature, SignerError> {
+    async fn sign_message(&self, message: &[u8]) -> Result<sdk_adapter::Signature, SignerError> {
         match self {
             #[cfg(feature = "memory")]
             Signer::Memory(s) => s.sign_message(message).await,
@@ -188,7 +193,7 @@ impl SolanaSigner for Signer {
 
     async fn sign_partial_transaction(
         &self,
-        tx: &mut solana_sdk::transaction::Transaction,
+        tx: &mut sdk_adapter::Transaction,
     ) -> Result<SignedTransaction, SignerError> {
         match self {
             #[cfg(feature = "memory")]

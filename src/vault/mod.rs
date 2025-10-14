@@ -1,9 +1,9 @@
 //! HashiCorp Vault signer integration
 
+use crate::sdk_adapter::{Pubkey, Signature, Transaction};
 use crate::traits::SignedTransaction;
 use crate::{error::SignerError, traits::SolanaSigner, transaction_util::TransactionUtil};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
 use std::sync::Arc;
 use vaultrs::{
     client::{VaultClient, VaultClientSettingsBuilder},

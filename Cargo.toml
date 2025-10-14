@@ -8,12 +8,18 @@ repository = "https://github.com/solana-foundation/solana-signers"
 keywords = ["solana", "blockchain", "signer", "wallet", "crypto"]
 
 [features]
-default = ["memory"]
+default = ["memory", "sdk-v2"]
+
+# Signer backends
 memory = []
 vault = ["dep:reqwest", "dep:vaultrs"]
 privy = ["dep:reqwest"]
 turnkey = ["dep:reqwest", "dep:p256", "dep:hex", "dep:chrono"]
 all = ["memory", "vault", "privy", "turnkey"]
+
+# SDK version selection (mutually exclusive)
+sdk-v2 = ["dep:solana-sdk"]
+sdk-v3 = ["dep:solana-sdk-v3"]
 
 # WARNING: DO NOT ENABLE IN PRODUCTION
 # This feature logs full API error responses which may contain sensitive information
@@ -21,8 +27,9 @@ all = ["memory", "vault", "privy", "turnkey"]
 unsafe-debug = []
 
 [dependencies]
-# Solana SDK
-solana-sdk = "2.3.0"
+# Solana SDK (version selected by feature flags)
+solana-sdk = { version = "2.3.0", optional = true }
+solana-sdk-v3 = { package = "solana-sdk", version = "3.0", optional = true }
 
 # Core dependencies
 async-trait = "0.1.89"
@@ -48,4 +55,3 @@ base64 = "0.22.1"
 tokio = { version = "1.47", features = ["test-util", "macros", "rt"] }
 wiremock = "0.6"
 rand = "0.8.0"
-solana-system-interface = "1.0.0"
