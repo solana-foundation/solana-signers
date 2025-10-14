@@ -5,6 +5,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction}
 pub struct TransactionUtil;
 
 impl TransactionUtil {
+    /// Encodes a Transaction to a base64 serialized String
     pub fn serialize_transaction(transaction: &Transaction) -> Result<String, SignerError> {
         Ok(
             STANDARD.encode(bincode::serialize(transaction).map_err(|e| {
