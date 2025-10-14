@@ -1,10 +1,11 @@
 import { Address, assertIsAddress } from '@solana/addresses';
 import { getBase64Encoder } from '@solana/codecs-strings';
 import { SignatureBytes } from '@solana/keys';
-import { SignatureDictionary } from '@solana/signers';
+import { isMessagePartialSigner, isTransactionPartialSigner, SignatureDictionary } from '@solana/signers';
 import { Base64EncodedWireTransaction, getTransactionDecoder } from '@solana/transactions';
 
 import { SignerErrorCode, throwSignerError } from './errors.js';
+import { SolanaSigner } from './types.js';
 
 interface ExtractSignatureFromWireTransactionOptions {
     base64WireTransaction: Base64EncodedWireTransaction;
@@ -80,4 +81,35 @@ export function createSignatureDictionary({
         });
     }
     return Object.freeze({ [signerAddress]: signature });
+}
+
+/**
+ * Checks if the given value is a SolanaSigner.
+ * @param value - The value to check
+ * @returns True if the value is a SolanaSigner, false otherwise
+ */
+export function isSolanaSigner<TAddress extends string>(value: {
+    address: Address<TAddress>;
+}): value is SolanaSigner<TAddress> {
+    return (
+        'address' in value &&
+        'isAvailable' in value &&
+        isMessagePartialSigner(value) &&
+        isTransactionPartialSigner(value)
+    );
+}
+
+/**
+ * Asserts that the given value is a SolanaSigner, throwing an error if it is not.
+ * @param value - The value to check
+ * @throws {SignerError} If the value is not a SolanaSigner
+ */
+export function assertIsSolanaSigner<TAddress extends string>(value: {
+    address: Address<TAddress>;
+}): asserts value is SolanaSigner<TAddress> {
+    if (!isSolanaSigner(value)) {
+        throwSignerError(SignerErrorCode.EXPECTED_SOLANA_SIGNER, {
+            address: value.address,
+        });
+    }
 }

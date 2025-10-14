@@ -31,14 +31,14 @@ import {
  * Configuration for creating a PrivySigner
  */
 export interface PrivySignerConfig {
+    /** Optional custom API base URL (defaults to https://api.privy.io/v1) */
+    apiBaseUrl?: string;
     /** Privy application ID */
     appId: string;
     /** Privy application secret */
     appSecret: string;
     /** Privy wallet ID */
     walletId: string;
-    /** Optional custom API base URL (defaults to https://api.privy.io/v1) */
-    apiBaseUrl?: string;
 }
 
 /**
@@ -55,6 +55,11 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
     private initialized: boolean = false;
 
     private constructor(config: PrivySignerConfig) {
+        if (!config.appId || !config.appSecret || !config.walletId) {
+            throwSignerError(SignerErrorCode.CONFIG_ERROR, {
+                message: 'Missing required configuration fields (appId, appSecret, or walletId)',
+            });
+        }
         this.appId = config.appId;
         this.appSecret = config.appSecret;
         this.walletId = config.walletId;
@@ -95,13 +100,22 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
     private async fetchPublicKey(): Promise<Address<TAddress>> {
         const url = `${this.apiBaseUrl}/wallets/${this.walletId}`;
 
-        const response = await fetch(url, {
-            headers: {
-                Authorization: this.getAuthHeader(),
-                'privy-app-id': this.appId,
-            },
-            method: 'GET',
-        });
+        let response: Response;
+        try {
+            response = await fetch(url, {
+                headers: {
+                    Authorization: this.getAuthHeader(),
+                    'privy-app-id': this.appId,
+                },
+                method: 'GET',
+            });
+        } catch (error) {
+            throwSignerError(SignerErrorCode.HTTP_ERROR, {
+                cause: error,
+                message: 'Privy network request failed',
+                url,
+            });
+        }
 
         if (!response.ok) {
             const errorText = await response.text().catch(() => 'Failed to read error response');
@@ -112,7 +126,22 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
             });
         }
 
-        const walletInfo = (await response.json()) as WalletResponse<TAddress>;
+        let walletInfo: WalletResponse<TAddress>;
+        try {
+            walletInfo = (await response.json()) as WalletResponse<TAddress>;
+        } catch (error) {
+            throwSignerError(SignerErrorCode.PARSING_ERROR, {
+                cause: error,
+                message: 'Failed to parse Privy response',
+            });
+        }
+
+        if (!walletInfo.address) {
+            throwSignerError(SignerErrorCode.REMOTE_API_ERROR, {
+                message: 'Missing address in Privy wallet response',
+            });
+        }
+
         assertIsAddress(walletInfo.address);
         return walletInfo.address;
     }
@@ -146,15 +175,24 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
             },
         };
 
-        const response = await fetch(url, {
-            body: JSON.stringify(request),
-            headers: {
-                Authorization: this.getAuthHeader(),
-                'Content-Type': 'application/json',
-                'privy-app-id': this.appId,
-            },
-            method: 'POST',
-        });
+        let response: Response;
+        try {
+            response = await fetch(url, {
+                body: JSON.stringify(request),
+                headers: {
+                    Authorization: this.getAuthHeader(),
+                    'Content-Type': 'application/json',
+                    'privy-app-id': this.appId,
+                },
+                method: 'POST',
+            });
+        } catch (error) {
+            throwSignerError(SignerErrorCode.HTTP_ERROR, {
+                cause: error,
+                message: 'Privy network request failed',
+                url,
+            });
+        }
 
         if (!response.ok) {
             const errorText = await response.text().catch(() => 'Failed to read error response');
@@ -165,7 +203,22 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
             });
         }
 
-        const signResponse = (await response.json()) as SignTransactionResponse;
+        let signResponse: SignTransactionResponse;
+        try {
+            signResponse = (await response.json()) as SignTransactionResponse;
+        } catch (error) {
+            throwSignerError(SignerErrorCode.PARSING_ERROR, {
+                cause: error,
+                message: 'Failed to parse Privy signing response',
+            });
+        }
+
+        if (!signResponse.data?.signed_transaction) {
+            throwSignerError(SignerErrorCode.REMOTE_API_ERROR, {
+                message: 'Missing signed_transaction in Privy response',
+            });
+        }
+
         return signResponse.data.signed_transaction;
     }
 
@@ -185,15 +238,24 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
             },
         };
 
-        const response = await fetch(url, {
-            body: JSON.stringify(request),
-            headers: {
-                Authorization: this.getAuthHeader(),
-                'Content-Type': 'application/json',
-                'privy-app-id': this.appId,
-            },
-            method: 'POST',
-        });
+        let response: Response;
+        try {
+            response = await fetch(url, {
+                body: JSON.stringify(request),
+                headers: {
+                    Authorization: this.getAuthHeader(),
+                    'Content-Type': 'application/json',
+                    'privy-app-id': this.appId,
+                },
+                method: 'POST',
+            });
+        } catch (error) {
+            throwSignerError(SignerErrorCode.HTTP_ERROR, {
+                cause: error,
+                message: 'Privy network request failed',
+                url,
+            });
+        }
 
         if (!response.ok) {
             const errorText = await response.text().catch(() => 'Failed to read error response');
@@ -204,12 +266,27 @@ export class PrivySigner<TAddress extends string = string> implements SolanaSign
             });
         }
 
-        const signResponse = (await response.json()) as SignMessageResponse;
+        let signResponse: SignMessageResponse;
+        try {
+            signResponse = (await response.json()) as SignMessageResponse;
+        } catch (error) {
+            throwSignerError(SignerErrorCode.PARSING_ERROR, {
+                cause: error,
+                message: 'Failed to parse Privy signing response',
+            });
+        }
+
+        if (!signResponse.data?.signature) {
+            throwSignerError(SignerErrorCode.REMOTE_API_ERROR, {
+                message: 'Missing signature in Privy response',
+            });
+        }
+
         return this.getSignatureBytes(signResponse.data.signature);
     }
 
     /**
-     * Sign multiple messages using Privy API 
+     * Sign multiple messages using Privy API
      * @param messages - The messages to sign
      * @returns The signature dictionaries
      */

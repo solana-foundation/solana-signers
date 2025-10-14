@@ -1,11 +1,39 @@
 import { generateKeyPair, signBytes } from '@solana/keys';
+import { Brand, EncodedString } from '@solana/nominal-types';
 import { createSignableMessage, createSignerFromKeyPair, generateKeyPairSigner } from '@solana/signers';
+import {
+    Base64EncodedWireTransaction,
+    Transaction,
+    TransactionWithinSizeLimit,
+    TransactionWithLifetime,
+} from '@solana/transactions';
+import { assertIsSolanaSigner } from '@solana-signers/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PrivySigner } from '../privy-signer.js';
 
 // Mock fetch globally
 global.fetch = vi.fn();
+
+export type Blockhash = Brand<EncodedString<string, 'base58'>, 'Blockhash'>;
+
+// Sample base64 wire transaction for testing
+const MOCK_B64_WIRE_TX =
+    'Af1fCRSrZ9ASprap8D3ZLPsbzeCs6uihvj/jfjm3UrAY72by5zKMRd7YAIbJCl9gyRHQbw+xdklET2ZNmZi3iA2AAQABAurnRuGN5bfL2osZZMdGlvL1qz8k0GbdLhiP1fICgkmsBUpTWpkpIQZNJOhxYNo4fHw1td28kruB5B+oQEEFRI1NhzEgE0w/YfwaeZi2Ns/mLoZvq2Sx5NVQg7Am7wrjGwEBAAxIZWxsbywgUHJpdnkA' as Base64EncodedWireTransaction;
+
+// Mock the transaction encoding function
+vi.mock('@solana/transactions', async () => {
+    const actual = await vi.importActual<typeof import('@solana/transactions')>('@solana/transactions');
+    return {
+        ...actual,
+        getBase64EncodedWireTransaction: vi.fn(() => MOCK_B64_WIRE_TX),
+    };
+});
+
+// Helper to create a mock transaction without needing real transaction building
+const createMockTransaction = (): Transaction & TransactionWithinSizeLimit & TransactionWithLifetime => {
+    return {} as Transaction & TransactionWithinSizeLimit & TransactionWithLifetime;
+};
 
 describe('PrivySigner', () => {
     beforeEach(() => {
@@ -56,6 +84,7 @@ describe('PrivySigner', () => {
 
             expect(signer.address).toBeTruthy();
             expect(typeof signer.address).toBe('string');
+            assertIsSolanaSigner(signer);
         });
 
         it('sets address field correctly from API response', async () => {
@@ -83,6 +112,84 @@ describe('PrivySigner', () => {
 
             await expect(PrivySigner.create(mockConfig)).rejects.toThrow();
         });
+
+        describe('config validation', () => {
+            it('throws CONFIG_ERROR when appId is missing', async () => {
+                const invalidConfig = { ...mockConfig, appId: '' };
+                await expect(PrivySigner.create(invalidConfig)).rejects.toMatchObject({
+                    code: 'SIGNER_CONFIG_ERROR',
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    message: expect.stringContaining('Missing required configuration fields'),
+                });
+            });
+
+            it('throws CONFIG_ERROR when appSecret is missing', async () => {
+                const invalidConfig = { ...mockConfig, appSecret: '' };
+                await expect(PrivySigner.create(invalidConfig)).rejects.toMatchObject({
+                    code: 'SIGNER_CONFIG_ERROR',
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    message: expect.stringContaining('Missing required configuration fields'),
+                });
+            });
+
+            it('throws CONFIG_ERROR when walletId is missing', async () => {
+                const invalidConfig = { ...mockConfig, walletId: '' };
+                await expect(PrivySigner.create(invalidConfig)).rejects.toMatchObject({
+                    code: 'SIGNER_CONFIG_ERROR',
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    message: expect.stringContaining('Missing required configuration fields'),
+                });
+            });
+        });
+
+        describe('network errors', () => {
+            it('throws HTTP_ERROR when fetch fails during create', async () => {
+                (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network timeout'));
+
+                await expect(PrivySigner.create(mockConfig)).rejects.toMatchObject({
+                    code: 'SIGNER_HTTP_ERROR',
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    message: expect.stringContaining('Privy network request failed'),
+                });
+            });
+        });
+
+        describe('parsing errors', () => {
+            it('throws PARSING_ERROR when response is invalid JSON', async () => {
+                (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+                    json: () => Promise.reject(new Error('Invalid JSON')),
+                    ok: true,
+                    status: 200,
+                });
+
+                await expect(PrivySigner.create(mockConfig)).rejects.toMatchObject({
+                    code: 'SIGNER_PARSING_ERROR',
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    message: expect.stringContaining('Failed to parse Privy response'),
+                });
+            });
+        });
+
+        describe('response validation', () => {
+            it('throws REMOTE_API_ERROR when address is missing from response', async () => {
+                (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+                    json: () =>
+                        Promise.resolve({
+                            chain_type: 'solana',
+                            id: mockConfig.walletId,
+                            // missing address field
+                        }),
+                    ok: true,
+                    status: 200,
+                });
+
+                await expect(PrivySigner.create(mockConfig)).rejects.toMatchObject({
+                    code: 'SIGNER_REMOTE_API_ERROR',
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                    message: expect.stringContaining('Missing address in Privy wallet response'),
+                });
+            });
+        });
     });
 
     describe('signMessages', () => {
@@ -106,6 +213,66 @@ describe('PrivySigner', () => {
             expect(sigDict).toBeTruthy();
             expect(sigDict?.[signer.address]).toBeTruthy();
         });
+
+        it('throws HTTP_ERROR when fetch fails during signing', async () => {
+            const keyPair = await generateKeyPairSigner();
+            setupMockWalletResponse(keyPair.address);
+            const signer = await PrivySigner.create(mockConfig);
+
+            (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network timeout'));
+
+            const message = createSignableMessage(new Uint8Array([1, 2, 3, 4]));
+            await expect(signer.signMessages([message])).rejects.toMatchObject({
+                code: 'SIGNER_HTTP_ERROR',
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                message: expect.stringContaining('Privy network request failed'),
+            });
+        });
+
+        it('throws PARSING_ERROR when response is invalid JSON', async () => {
+            const keyPair = await generateKeyPairSigner();
+            setupMockWalletResponse(keyPair.address);
+            const signer = await PrivySigner.create(mockConfig);
+
+            (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+                json: () => Promise.reject(new Error('Invalid JSON')),
+                ok: true,
+                status: 200,
+            });
+
+            const message = createSignableMessage(new Uint8Array([1, 2, 3, 4]));
+            await expect(signer.signMessages([message])).rejects.toMatchObject({
+                code: 'SIGNER_PARSING_ERROR',
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                message: expect.stringContaining('Failed to parse Privy signing response'),
+            });
+        });
+
+        it('throws REMOTE_API_ERROR when signature is missing from response', async () => {
+            const keyPair = await generateKeyPairSigner();
+            setupMockWalletResponse(keyPair.address);
+            const signer = await PrivySigner.create(mockConfig);
+
+            (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+                json: () =>
+                    Promise.resolve({
+                        data: {
+                            encoding: 'base64',
+                            // missing signature field
+                        },
+                        method: 'signMessage',
+                    }),
+                ok: true,
+                status: 200,
+            });
+
+            const message = createSignableMessage(new Uint8Array([1, 2, 3, 4]));
+            await expect(signer.signMessages([message])).rejects.toMatchObject({
+                code: 'SIGNER_REMOTE_API_ERROR',
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                message: expect.stringContaining('Missing signature in Privy response'),
+            });
+        });
     });
 
     describe('signTransactions', () => {
@@ -122,12 +289,72 @@ describe('PrivySigner', () => {
                 text: () => Promise.resolve('Internal server error'),
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const mockTx: any = {
-                messageBytes: new Uint8Array([1, 2, 3, 4]),
-            };
+            const mockTx = createMockTransaction();
 
             await expect(signer.signTransactions([mockTx])).rejects.toThrow();
+        });
+
+        it('throws HTTP_ERROR when fetch fails during transaction signing', async () => {
+            const keyPair = await generateKeyPairSigner();
+            setupMockWalletResponse(keyPair.address);
+            const signer = await PrivySigner.create(mockConfig);
+
+            (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network timeout'));
+
+            const mockTx = createMockTransaction();
+
+            await expect(signer.signTransactions([mockTx])).rejects.toMatchObject({
+                code: 'SIGNER_HTTP_ERROR',
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                message: expect.stringContaining('Privy network request failed'),
+            });
+        });
+
+        it('throws PARSING_ERROR when response is invalid JSON', async () => {
+            const keyPair = await generateKeyPairSigner();
+            setupMockWalletResponse(keyPair.address);
+            const signer = await PrivySigner.create(mockConfig);
+
+            (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+                json: () => Promise.reject(new Error('Invalid JSON')),
+                ok: true,
+                status: 200,
+            });
+
+            const mockTx = createMockTransaction();
+
+            await expect(signer.signTransactions([mockTx])).rejects.toMatchObject({
+                code: 'SIGNER_PARSING_ERROR',
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                message: expect.stringContaining('Failed to parse Privy signing response'),
+            });
+        });
+
+        it('throws REMOTE_API_ERROR when signed_transaction is missing from response', async () => {
+            const keyPair = await generateKeyPairSigner();
+            setupMockWalletResponse(keyPair.address);
+            const signer = await PrivySigner.create(mockConfig);
+
+            (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+                json: () =>
+                    Promise.resolve({
+                        data: {
+                            encoding: 'base64',
+                            // missing signed_transaction field
+                        },
+                        method: 'signTransaction',
+                    }),
+                ok: true,
+                status: 200,
+            });
+
+            const mockTx = createMockTransaction();
+
+            await expect(signer.signTransactions([mockTx])).rejects.toMatchObject({
+                code: 'SIGNER_REMOTE_API_ERROR',
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                message: expect.stringContaining('Missing signed_transaction in Privy response'),
+            });
         });
     });
 

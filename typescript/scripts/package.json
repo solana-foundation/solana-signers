@@ -7,7 +7,8 @@
     "test:privy": "tsx test-privy.ts"
   },
   "dependencies": {
-    "@solana-signers/privy": "workspace:*"
+    "@solana-signers/privy": "workspace:*",
+    "@solana-signers/core": "workspace:*"
   },
   "devDependencies": {
     "@solana-program/memo": "^0.8.0",

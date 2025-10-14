@@ -1,6 +1,5 @@
 /**
- * Custom error codes for solana-signers
- * These are string-based codes specific to this library
+ * Custom error codes for solana-signers, specific to this library
  */
 export enum SignerErrorCode {
     INVALID_PRIVATE_KEY = 'SIGNER_INVALID_PRIVATE_KEY',
@@ -9,10 +8,12 @@ export enum SignerErrorCode {
     REMOTE_API_ERROR = 'SIGNER_REMOTE_API_ERROR',
     HTTP_ERROR = 'SIGNER_HTTP_ERROR',
     SERIALIZATION_ERROR = 'SIGNER_SERIALIZATION_ERROR',
+    PARSING_ERROR = 'SIGNER_PARSING_ERROR',
     CONFIG_ERROR = 'SIGNER_CONFIG_ERROR',
     NOT_AVAILABLE = 'SIGNER_NOT_AVAILABLE',
     IO_ERROR = 'SIGNER_IO_ERROR',
-    PRIVY_NOT_INITIALIZED = 'SIGNER_PRIVY_NOT_INITIALIZED',
+    SIGNER_NOT_INITIALIZED = 'SIGNER_NOT_INITIALIZED',
+    EXPECTED_SOLANA_SIGNER = 'SIGNER_EXPECTED_SOLANA_SIGNER',
 }
 
 /**

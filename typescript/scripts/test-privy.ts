@@ -7,6 +7,7 @@
  */
 
 import { PrivySigner } from '@solana-signers/privy';
+import { assertIsSolanaSigner } from '@solana-signers/core';
 import {
     appendTransactionMessageInstructions,
     createSolanaRpc,
@@ -49,6 +50,8 @@ async function main() {
         walletId: process.env.PRIVY_WALLET_ID!,
         apiBaseUrl: process.env.PRIVY_API_BASE_URL,
     });
+    
+    assertIsSolanaSigner(privySigner);
 
     const truncatedAddress = privySigner.address.slice(0, 4) + '...' + privySigner.address.slice(-4);
     console.log(`  → Address: ${truncatedAddress}`);
