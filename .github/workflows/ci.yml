@@ -11,17 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        features:
-          - --all-features
-          - --no-default-features --features memory
-          - --features vault
-          - --features privy
-          - --features turnkey
+        sdk_version: [v2, v3]
+        backend: [memory, vault, privy, turnkey, all]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo build ${{ matrix.features }}
-      - run: cargo test ${{ matrix.features }}
+      - name: Build and test with SDK ${{ matrix.sdk_version }}
+        run: |
+          if [ "${{ matrix.sdk_version }}" = "v2" ]; then
+            cargo build --features ${{ matrix.backend }},sdk-v2,unsafe-debug
+            cargo test --features ${{ matrix.backend }},sdk-v2,unsafe-debug
+          else
+            cargo build --no-default-features --features ${{ matrix.backend }},sdk-v3,unsafe-debug
+            cargo test --no-default-features --features ${{ matrix.backend }},sdk-v3,unsafe-debug
+          fi
 
   lint:
     runs-on: ubuntu-latest
@@ -31,4 +34,7 @@ jobs:
         with:
           components: rustfmt, clippy
       - run: cargo fmt --all -- --check
-      - run: cargo clippy --all-features -- -D warnings
+      - name: Clippy SDK v2
+        run: cargo clippy --all-targets --features all,sdk-v2,unsafe-debug -- -D warnings
+      - name: Clippy SDK v3
+        run: cargo clippy --all-targets --no-default-features --features all,sdk-v3,unsafe-debug -- -D warnings

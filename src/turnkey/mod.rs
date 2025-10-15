@@ -2,11 +2,11 @@
 
 mod types;
 
+use crate::sdk_adapter::{Pubkey, Signature, Transaction};
 pub use crate::traits::SignedTransaction;
 use crate::{error::SignerError, traits::SolanaSigner, transaction_util::TransactionUtil};
 use base64::Engine;
 use p256::ecdsa::signature::Signer as P256Signer;
-use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
 use std::str::FromStr;
 use types::{ActivityResponse, SignParameters, SignRequest, WhoAmIRequest};
 
@@ -260,8 +260,8 @@ impl SolanaSigner for TurnkeySigner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sdk_adapter::{Keypair, Signer};
     use crate::test_util::create_test_transaction;
-    use solana_sdk::{signature::Keypair, signer::Signer};
     use wiremock::{
         matchers::{header, method, path},
         Mock, MockServer, ResponseTemplate,

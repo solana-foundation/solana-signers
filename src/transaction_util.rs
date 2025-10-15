@@ -1,6 +1,6 @@
 use crate::error::SignerError;
+use crate::sdk_adapter::{Pubkey, Signature, Transaction};
 use base64::{engine::general_purpose::STANDARD, Engine};
-use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
 
 pub struct TransactionUtil;
 

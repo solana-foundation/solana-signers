@@ -2,10 +2,10 @@
 
 mod types;
 
+use crate::sdk_adapter::{Pubkey, Signature, Transaction};
 use crate::traits::SignedTransaction;
 use crate::{error::SignerError, traits::SolanaSigner};
 use base64::{engine::general_purpose::STANDARD, Engine};
-use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
 use std::str::FromStr;
 use types::{
     SignTransactionParams, SignTransactionRequest, SignTransactionResponse, WalletResponse,
@@ -223,8 +223,8 @@ impl SolanaSigner for PrivySigner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sdk_adapter::{Keypair, Signer};
     use crate::test_util::create_test_transaction;
-    use solana_sdk::{signature::Keypair, signer::Signer};
     use wiremock::{
         matchers::{header, method, path},
         Mock, MockServer, ResponseTemplate,

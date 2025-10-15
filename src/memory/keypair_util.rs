@@ -1,7 +1,7 @@
 //! Utility functions for parsing private keys in multiple formats
 
 use crate::error::SignerError;
-use solana_sdk::signature::Keypair;
+use crate::sdk_adapter::{keypair_from_bytes, Keypair};
 use std::fs;
 
 const PRIVATE_KEY_LENGTH: usize = 64;
@@ -44,7 +44,7 @@ impl KeypairUtil {
             )));
         }
 
-        let keypair = Keypair::try_from(&decoded[..]).map_err(|e| {
+        let keypair = keypair_from_bytes(&decoded[..]).map_err(|e| {
             SignerError::InvalidPrivateKey(format!("Invalid private key bytes: {e}"))
         })?;
 
@@ -80,7 +80,7 @@ impl KeypairUtil {
                         byte_array.len()
                     )));
                 }
-                Keypair::try_from(&byte_array[..]).map_err(|e| {
+                keypair_from_bytes(&byte_array[..]).map_err(|e| {
                     SignerError::InvalidPrivateKey(format!("Invalid private key bytes: {e}"))
                 })
             }
@@ -101,7 +101,7 @@ impl KeypairUtil {
                     byte_array.len()
                 )));
             }
-            return Keypair::try_from(&byte_array[..]).map_err(|e| {
+            return keypair_from_bytes(&byte_array[..]).map_err(|e| {
                 SignerError::InvalidPrivateKey(format!("Invalid private key bytes: {e}"))
             });
         }
@@ -115,7 +115,7 @@ impl KeypairUtil {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solana_sdk::signer::Signer;
+    use crate::sdk_adapter::keypair_pubkey;
 
     const TEST_KEYPAIR_BYTES: &str = "[41,99,180,88,51,57,48,80,61,63,219,75,176,49,116,254,227,176,196,204,122,47,166,133,155,252,217,0,253,17,49,143,47,94,121,167,195,136,72,22,157,48,77,88,63,96,57,122,181,243,236,188,241,134,174,224,100,246,17,170,104,17,151,48]";
     const TEST_KEYPAIR_BASE58: &str =
@@ -128,7 +128,7 @@ mod tests {
         assert!(result.is_ok());
 
         let keypair = result.unwrap();
-        assert_eq!(keypair.pubkey().to_string(), TEST_PUBKEY);
+        assert_eq!(keypair_pubkey(&keypair).to_string(), TEST_PUBKEY);
     }
 
     #[test]
@@ -170,14 +170,14 @@ mod tests {
     fn test_from_private_key_string_base58() {
         let result = KeypairUtil::from_private_key_string(TEST_KEYPAIR_BASE58);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().pubkey().to_string(), TEST_PUBKEY);
+        assert_eq!(keypair_pubkey(&result.unwrap()).to_string(), TEST_PUBKEY);
     }
 
     #[test]
     fn test_from_private_key_string_u8_array() {
         let result = KeypairUtil::from_private_key_string(TEST_KEYPAIR_BYTES);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().pubkey().to_string(), TEST_PUBKEY);
+        assert_eq!(keypair_pubkey(&result.unwrap()).to_string(), TEST_PUBKEY);
     }
 
     #[test]

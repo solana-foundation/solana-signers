@@ -4,17 +4,15 @@ mod keypair_util;
 
 use crate::{
     error::SignerError,
+    sdk_adapter::keypair_from_bytes,
     traits::{SignedTransaction, SolanaSigner},
     transaction_util::TransactionUtil,
 };
 
-use keypair_util::KeypairUtil;
-use solana_sdk::{
-    pubkey::Pubkey,
-    signature::{Keypair, Signature},
-    signer::Signer as SdkSigner,
-    transaction::Transaction,
+use crate::sdk_adapter::{
+    keypair_pubkey, keypair_sign_message, Keypair, Pubkey, Signature, Transaction,
 };
+use keypair_util::KeypairUtil;
 
 /// A Solana-based signer that uses an in-memory keypair
 pub struct MemorySigner {
@@ -24,7 +22,7 @@ pub struct MemorySigner {
 impl std::fmt::Debug for MemorySigner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MemorySigner")
-            .field("pubkey", &self.keypair.pubkey())
+            .field("pubkey", &keypair_pubkey(&self.keypair))
             .finish_non_exhaustive()
     }
 }
@@ -37,7 +35,7 @@ impl MemorySigner {
 
     /// Creates a new signer from a private key byte array
     pub fn from_bytes(private_key: &[u8]) -> Result<Self, SignerError> {
-        let keypair = Keypair::try_from(private_key).map_err(|e| {
+        let keypair = keypair_from_bytes(private_key).map_err(|e| {
             SignerError::InvalidPrivateKey(format!("Invalid private key bytes: {e}"))
         })?;
         Ok(Self { keypair })
@@ -53,25 +51,23 @@ impl MemorySigner {
     }
 
     async fn sign_bytes(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
-        Ok(self.keypair.sign_message(serialized))
+        Ok(keypair_sign_message(&self.keypair, serialized))
     }
 }
 
 #[async_trait::async_trait]
 impl SolanaSigner for MemorySigner {
     fn pubkey(&self) -> Pubkey {
-        self.keypair.pubkey()
+        keypair_pubkey(&self.keypair)
     }
 
     async fn sign_transaction(
         &self,
         tx: &mut Transaction,
     ) -> Result<SignedTransaction, SignerError> {
-        // Get actual signature
         let signature = self.sign_bytes(&tx.message_data()).await?;
 
-        // Sign actual transaction
-        tx.sign(&[&self.keypair], tx.message().recent_blockhash);
+        TransactionUtil::add_signature_to_transaction(tx, &self.pubkey(), signature)?;
 
         Ok((TransactionUtil::serialize_transaction(tx)?, signature))
     }
@@ -86,7 +82,7 @@ impl SolanaSigner for MemorySigner {
     ) -> Result<SignedTransaction, SignerError> {
         let signature = self.sign_bytes(&tx.message_data()).await?;
 
-        tx.partial_sign(&[&self.keypair], tx.message().recent_blockhash);
+        TransactionUtil::add_signature_to_transaction(tx, &self.pubkey(), signature)?;
 
         Ok((TransactionUtil::serialize_transaction(tx)?, signature))
     }
