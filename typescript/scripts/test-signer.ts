@@ -21,30 +21,36 @@ import {
     createSolanaRpc,
     createSolanaRpcSubscriptions,
     createTransactionMessage,
-    getBase64EncodedWireTransaction,
+    assertIsFullySignedTransaction,
     lamports,
     pipe,
     Rpc,
     RpcSubscriptions,
     RpcTransport,
+    sendAndConfirmTransactionFactory,
     setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     signTransactionMessageWithSigners,
     SolanaRpcApiFromTransport,
     SolanaRpcSubscriptionsApi,
+    assertIsTransactionWithBlockhashLifetime,
+    getSignatureFromTransaction,
+    generateKeyPairSigner,
+    KeyPairSigner,
+    assertIsKeyPairSigner
 } from '@solana/kit';
 import { getAddMemoInstruction } from '@solana-program/memo';
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: './.env' });
 
-type SignerType = 'privy' | 'turnkey';
+type SignerType = 'privy' | 'turnkey' | 'keypair';
 
 function getSignerType(): SignerType {
     const signerEnv = process.env.SIGNER_TYPE;
     if (!signerEnv) { throw new Error('SIGNER_TYPE is not set') }
     const signerType = (signerEnv.toLowerCase()) as SignerType;
-    if (signerType !== 'privy' && signerType !== 'turnkey') { throw new Error(`Invalid signer type: ${signerType}`) }
+    if (signerType !== 'privy' && signerType !== 'turnkey' && signerType !== 'keypair') { throw new Error(`Invalid signer type: ${signerType}`) }
     return signerType;
 }
 
@@ -55,7 +61,7 @@ function logStatus(step: number, message: string) {
 
 interface SignerConfig {
     requiredEnvVars: string[];
-    create: () => Promise<SolanaSigner>;
+    create: () => Promise<SolanaSigner | KeyPairSigner>;
 }
 
 const SIGNER_CONFIGS: Record<SignerType, SignerConfig> = {
@@ -89,6 +95,12 @@ const SIGNER_CONFIGS: Record<SignerType, SignerConfig> = {
             });
         },
     },
+    keypair: {
+        requiredEnvVars: [],
+        create: async () => {
+            return await generateKeyPairSigner();
+        },
+    },
 };
 
 function validateEnv(signerType: SignerType) {
@@ -102,7 +114,7 @@ function validateEnv(signerType: SignerType) {
     }
 }
 
-async function createSigner(signerType: SignerType): Promise<SolanaSigner> {
+async function createSigner(signerType: SignerType): Promise<SolanaSigner | KeyPairSigner> {
     const config = SIGNER_CONFIGS[signerType];
     return await config.create();
 }
@@ -117,21 +129,26 @@ async function main() {
     logStatus(2, `Creating ${signerType} signer`);
 
     const signer = await createSigner(signerType);
-    assertIsSolanaSigner(signer);
 
     const truncatedAddress = signer.address.slice(0, 4) + '...' + signer.address.slice(-4);
-    console.log(`  → Address: ${truncatedAddress}`);
+    console.log(`  ✓ Address: ${truncatedAddress}`);
 
     logStatus(3, `Checking signer availability`);
 
     try {
-        const available = await signer.isAvailable();
-        console.log(`  → Available: ${available}`);
+        if (signerType === 'keypair') {
+            assertIsKeyPairSigner(signer as KeyPairSigner);
+        } else {
+            assertIsSolanaSigner(signer);
+            const available = await signer.isAvailable();
+            console.log(`  ✓ Available: ${available}`);
 
-        if (!available) {
-            console.error('  ✗ Signer is not available. Check your credentials.');
-            process.exit(1);
+            if (!available) {
+                console.error('  ✗ Signer is not available. Check your credentials.');
+                process.exit(1);
+            }
         }
+
     } catch (error) {
         console.error('  ✗ Error checking signer availability:', error);
         process.exit(1);
@@ -140,6 +157,7 @@ async function main() {
     console.log('  ✓ Signer is available');
     const rpc = createSolanaRpc(process.env.SOLANA_RPC_URL!);
     const rpcSubscriptions = createSolanaRpcSubscriptions(process.env.SOLANA_WS_URL!);
+    const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
     await handleAirdrop({ rpc, rpcSubscriptions, address: signer.address });
 
     logStatus(4, `Setting up transaction`);
@@ -161,7 +179,7 @@ async function main() {
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
         const signatureAddresses = Object.keys(signedTransaction.signatures);
         const foundSignature = signatureAddresses.find(address => address === signer.address);
-        console.log(`  → Signature found: ${foundSignature ? 'Yes' : 'No'}`);
+        console.log(`  ✓ Signature found: ${foundSignature ? 'Yes' : 'No'}`);
 
         if (!foundSignature) {
             console.error('  ✗ Signature not found for signer');
@@ -170,15 +188,15 @@ async function main() {
 
         logStatus(6, `Sending transaction`);
 
-        const wireTransaction = await getBase64EncodedWireTransaction(signedTransaction);
-        const signature = await rpc
-            .sendTransaction(wireTransaction, {
-                encoding: 'base64',
-                skipPreflight: true,
-            })
-            .send();
+        assertIsFullySignedTransaction(signedTransaction);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
+        await sendAndConfirmTransaction(signedTransaction, {
+            commitment: 'processed',
+            skipPreflight: true,
+        });
+        const signature = getSignatureFromTransaction(signedTransaction);
 
-        console.log(`  → Transaction sent: ${signature}`);
+        console.log(`  ✓ Transaction sent: ${signature}`);
     } catch (error) {
         console.error('  ✗ Error signing transaction:', error);
         process.exit(1);
