@@ -24,15 +24,15 @@ class MyCustomSigner implements SolanaSigner {
     }
 }
 
-const signer = new MyCustomSigner(config);
+const customSigner = new MyCustomSigner(config);
 const transaction = pipe(
     createTransactionMessage({ version: 0 }),
-    tx => setTransactionMessageFeePayerSigner(privySigner, tx),
+    tx => setTransactionMessageFeePayerSigner(customSigner, tx),
     tx /* ... */
 );
 const signedTx = await signTransactionMessageWithSigners(transaction);
 ```
-(see [test-privy.ts](./scripts/test-privy.ts) for a complete example)
+(see [test-signer.ts](./scripts/test-signer.ts) for a complete example)
 
 ## Packages
 
@@ -40,8 +40,11 @@ const signedTx = await signTransactionMessageWithSigners(transaction);
 |---------|-------------|
 | [@solana-signers/core](./packages/core) | Core interfaces, types, and utilities for building custom signers |
 | [@solana-signers/privy](./packages/privy) | Privy wallet signer implementation |
+| [@solana-signers/turnkey](./packages/turnkey) | Turnkey wallet signer implementation |
 
 ## Installation
+
+*note: not yet published to npm registry. must build locally to use*
 
 ```bash
 # Core package (required for building custom signers)
@@ -49,4 +52,7 @@ pnpm add @solana-signers/core
 
 # Privy implementation
 pnpm add @solana-signers/privy
+
+# Turnkey implementation
+pnpm add @solana-signers/turnkey
 ```
