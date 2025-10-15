@@ -142,7 +142,7 @@ mod tests {
     async fn test_sign_transaction() {
         let signer = create_test_signer();
 
-        let mut tx = create_test_transaction(&signer.keypair);
+        let mut tx = create_test_transaction(&keypair_pubkey(&signer.keypair));
 
         let result = signer.sign_transaction(&mut tx).await;
         assert!(result.is_ok());
@@ -164,7 +164,7 @@ mod tests {
     async fn test_sign_partial_transaction() {
         let signer = create_test_signer();
 
-        let mut tx = create_test_transaction(&signer.keypair);
+        let mut tx = create_test_transaction(&keypair_pubkey(&signer.keypair));
 
         let result = signer.sign_partial_transaction(&mut tx).await;
         assert!(result.is_ok());

@@ -260,7 +260,7 @@ impl SolanaSigner for TurnkeySigner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sdk_adapter::{Keypair, Signer};
+    use crate::sdk_adapter::{keypair_pubkey, Keypair, Signer};
     use crate::test_util::create_test_transaction;
     use wiremock::{
         matchers::{header, method, path},
@@ -390,7 +390,7 @@ mod tests {
         let keypair = create_test_keypair();
         let (api_public_key, api_private_key) = create_test_api_keys();
 
-        let mut tx = create_test_transaction(&keypair);
+        let mut tx = create_test_transaction(&keypair_pubkey(&keypair));
 
         // The signature that Turnkey API will return (signing the message_data)
         let signature = keypair.sign_message(&tx.message_data());

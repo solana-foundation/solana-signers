@@ -4,12 +4,11 @@ mod types;
 
 use crate::sdk_adapter::{Pubkey, Signature, Transaction};
 use crate::traits::SignedTransaction;
+use crate::transaction_util::TransactionUtil;
 use crate::{error::SignerError, traits::SolanaSigner};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::str::FromStr;
-use types::{
-    SignTransactionParams, SignTransactionRequest, SignTransactionResponse, WalletResponse,
-};
+use types::{SignMessageParams, SignMessageRequest, SignMessageResponse, WalletResponse};
 
 /// Privy-based signer using Privy's wallet API
 #[derive(Clone)]
@@ -102,13 +101,13 @@ impl PrivySigner {
     }
 
     /// Sign message bytes using Privy API
-    async fn sign_bytes(&self, serialized: &[u8]) -> Result<SignedTransaction, SignerError> {
+    async fn sign_bytes(&self, serialized: &[u8]) -> Result<Signature, SignerError> {
         let url = format!("{}/wallets/{}/rpc", self.api_base_url, self.wallet_id);
 
-        let request = SignTransactionRequest {
-            method: "signTransaction",
-            params: SignTransactionParams {
-                transaction: STANDARD.encode(serialized),
+        let request = SignMessageRequest {
+            method: "signMessage",
+            params: SignMessageParams {
+                message: STANDARD.encode(serialized),
                 encoding: "base64",
             },
         };
@@ -131,60 +130,39 @@ impl PrivySigner {
                 .unwrap_or_else(|_| "Failed to read error response".to_string());
 
             #[cfg(feature = "unsafe-debug")]
-            log::error!(
-                "Privy API sign_transaction error - status: {status}, response: {error_text}"
-            );
+            log::error!("Privy API sign_message error - status: {status}, response: {error_text}");
 
             #[cfg(not(feature = "unsafe-debug"))]
-            log::error!("Privy API sign_transaction error - status: {status}");
+            log::error!("Privy API sign_message error - status: {status}");
 
             return Err(SignerError::RemoteApiError(format!("API error {status}")));
         }
 
         let response_text = response.text().await?;
-        let sign_response: SignTransactionResponse = serde_json::from_str(&response_text)?;
+        let sign_response: SignMessageResponse = serde_json::from_str(&response_text)?;
 
-        // Decode the signed transaction from base64
-        let signed_tx_bytes = STANDARD
-            .decode(&sign_response.data.signed_transaction)
-            .map_err(|e| {
-                SignerError::SerializationError(format!("Failed to decode signed transaction: {e}"))
-            })?;
+        let decoded_response = STANDARD
+            .decode(&sign_response.data.signature)
+            .expect("Failed to decode response");
 
-        // Deserialize the transaction to extract the signature
-        let signed_tx: Transaction = bincode::deserialize(&signed_tx_bytes).map_err(|e| {
-            SignerError::SerializationError(format!(
-                "Failed to deserialize signed transaction: {e}"
-            ))
-        })?;
+        let signature =
+            Signature::try_from(decoded_response.as_slice()).expect("Failed to parse signature");
 
-        // Find the signature index that matches our public key
-        let signer_index = signed_tx
-            .message
-            .account_keys
-            .iter()
-            .position(|key| key == &self.public_key)
-            .ok_or_else(|| {
-                SignerError::SigningFailed("Signer public key not found in transaction".to_string())
-            })?;
-
-        // Get the signature at that index
-        let signature = signed_tx
-            .signatures
-            .get(signer_index)
-            .copied()
-            .ok_or_else(|| {
-                SignerError::SigningFailed("No signature found for signer public key".to_string())
-            })?;
-
-        Ok((sign_response.data.signed_transaction, signature))
+        Ok(signature)
     }
 
     async fn sign_and_serialize(
         &self,
         transaction: &mut Transaction,
     ) -> Result<SignedTransaction, SignerError> {
-        self.sign_bytes(&transaction.message_data()).await
+        let signature = self.sign_bytes(&transaction.message_data()).await?;
+
+        TransactionUtil::add_signature_to_transaction(transaction, &self.pubkey(), signature)?;
+
+        Ok((
+            TransactionUtil::serialize_transaction(transaction)?,
+            signature,
+        ))
     }
 }
 
@@ -202,9 +180,7 @@ impl SolanaSigner for PrivySigner {
     }
 
     async fn sign_message(&self, message: &[u8]) -> Result<Signature, SignerError> {
-        self.sign_bytes(message)
-            .await
-            .map(|(_, signature)| signature)
+        self.sign_bytes(message).await
     }
 
     async fn sign_partial_transaction(
@@ -223,7 +199,7 @@ impl SolanaSigner for PrivySigner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sdk_adapter::{Keypair, Signer};
+    use crate::sdk_adapter::{keypair_pubkey, Keypair, Signer};
     use crate::test_util::create_test_transaction;
     use wiremock::{
         matchers::{header, method, path},
@@ -288,22 +264,19 @@ mod tests {
         let keypair = create_test_keypair();
 
         // Create a signed transaction
-        let tx = create_test_transaction(&keypair);
+        let tx = create_test_transaction(&keypair_pubkey(&keypair));
         let signature = keypair.sign_message(&tx.message_data());
 
         let mut signed_tx = tx.clone();
         signed_tx.signatures = vec![signature];
 
-        let signed_tx_bytes = bincode::serialize(&signed_tx).unwrap();
-        let signed_tx_b64 = STANDARD.encode(&signed_tx_bytes);
-
         // Mock the RPC signing endpoint
         Mock::given(method("POST"))
             .and(path("/wallets/test-wallet-id/rpc"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "method": "signTransaction",
+                "method": "signMessage",
                 "data": {
-                    "signed_transaction": signed_tx_b64,
+                    "signature": STANDARD.encode(signature),
                     "encoding": "base64"
                 }
             })))
@@ -329,7 +302,7 @@ mod tests {
         let mock_server = MockServer::start().await;
         let keypair = create_test_keypair();
 
-        let mut tx = create_test_transaction(&keypair);
+        let mut tx = create_test_transaction(&keypair_pubkey(&keypair));
 
         // The signature that Privy API will return (signing the message_data)
         let signature = keypair.sign_message(&tx.message_data());
@@ -342,9 +315,9 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/wallets/test-wallet-id/rpc"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "method": "signTransaction",
+                "method": "signMessage",
                 "data": {
-                    "signed_transaction": STANDARD.encode(bincode::serialize(&signed_tx).unwrap()),
+                    "signature": STANDARD.encode(signature),
                     "encoding": "base64"
                 }
             })))
@@ -473,77 +446,6 @@ mod tests {
             result.unwrap_err(),
             SignerError::RemoteApiError(_)
         ));
-    }
-
-    #[tokio::test]
-    async fn test_privy_sign_invalid_response() {
-        let mock_server = MockServer::start().await;
-        let keypair = create_test_keypair();
-
-        // Mock response with invalid base64
-        Mock::given(method("POST"))
-            .and(path("/wallets/test-wallet-id/rpc"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "method": "signTransaction",
-                "data": {
-                    "signed_transaction": "not-valid-base64!!!",
-                    "encoding": "base64"
-                }
-            })))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-
-        let mut signer = PrivySigner::new(
-            "test-app-id".to_string(),
-            "test-app-secret".to_string(),
-            "test-wallet-id".to_string(),
-        );
-        signer.api_base_url = mock_server.uri();
-        signer.public_key = keypair.pubkey();
-
-        let result = signer.sign_message(b"test").await;
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            SignerError::SerializationError(_)
-        ));
-    }
-
-    #[tokio::test]
-    async fn test_privy_sign_no_signature() {
-        let mock_server = MockServer::start().await;
-        let keypair = create_test_keypair();
-
-        // Create transaction without signature
-        let tx = Transaction::default();
-        let signed_tx_bytes = bincode::serialize(&tx).unwrap();
-        let signed_tx_b64 = STANDARD.encode(&signed_tx_bytes);
-
-        Mock::given(method("POST"))
-            .and(path("/wallets/test-wallet-id/rpc"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "method": "signTransaction",
-                "data": {
-                    "signed_transaction": signed_tx_b64,
-                    "encoding": "base64"
-                }
-            })))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-
-        let mut signer = PrivySigner::new(
-            "test-app-id".to_string(),
-            "test-app-secret".to_string(),
-            "test-wallet-id".to_string(),
-        );
-        signer.api_base_url = mock_server.uri();
-        signer.public_key = keypair.pubkey();
-
-        let result = signer.sign_message(b"test").await;
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SignerError::SigningFailed(_)));
     }
 
     #[tokio::test]

@@ -17,3 +17,7 @@ Thumbs.db
 
 # AI
 .claude/
+
+.env
+test-ledger/
+validator.log
