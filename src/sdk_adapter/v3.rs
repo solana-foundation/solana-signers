@@ -1,9 +1,6 @@
 //! Adapter for Solana SDK v3.x
 
 // Re-export core types from solana-sdk v3
-#[cfg(test)]
-#[allow(unused_imports)]
-pub use solana_client_v3::{nonblocking::rpc_client::RpcClient, rpc_request::RpcRequest};
 #[allow(unused_imports)]
 pub use solana_sdk_v3::hash::Hash;
 #[allow(unused_imports)]

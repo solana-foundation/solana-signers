@@ -145,8 +145,8 @@ impl PrivySigner {
             .decode(&sign_response.data.signature)
             .expect("Failed to decode response");
 
-        let signature =
-            Signature::try_from(decoded_response.as_slice()).expect("Failed to parse signature");
+        let signature = Signature::try_from(decoded_response.as_slice())
+            .map_err(|_| SignerError::SigningFailed("Failed to parse signature".to_string()))?;
 
         Ok(signature)
     }
