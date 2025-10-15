@@ -22,6 +22,8 @@ pub mod error;
 mod sdk_adapter;
 #[cfg(test)]
 pub mod test_util;
+#[cfg(feature = "integration-tests")]
+pub mod tests;
 pub mod traits;
 pub mod transaction_util;
 

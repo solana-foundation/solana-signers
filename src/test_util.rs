@@ -1,8 +1,6 @@
 use std::str::FromStr;
 
-use crate::sdk_adapter::{
-    keypair_pubkey, AccountMeta, Hash, Instruction, Keypair, Message, Pubkey, Transaction,
-};
+use crate::sdk_adapter::{AccountMeta, Hash, Instruction, Message, Pubkey, Transaction};
 
 fn create_transfer_instruction(from: &Pubkey, to: &Pubkey, lamports: u64) -> Instruction {
     Instruction {
@@ -16,11 +14,10 @@ fn create_transfer_instruction(from: &Pubkey, to: &Pubkey, lamports: u64) -> Ins
     }
 }
 
-pub fn create_test_transaction(signer: &Keypair) -> Transaction {
-    let from = keypair_pubkey(signer);
+pub fn create_test_transaction(from: &Pubkey) -> Transaction {
     let to = Pubkey::new_unique();
-    let instruction = create_transfer_instruction(&from, &to, 1_000_000);
-    let message = Message::new(&[instruction], Some(&from));
+    let instruction = create_transfer_instruction(from, &to, 1_000_000);
+    let message = Message::new(&[instruction], Some(from));
     let mut tx = Transaction::new_unsigned(message);
     tx.message.recent_blockhash = Hash::default();
     tx

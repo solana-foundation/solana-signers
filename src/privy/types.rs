@@ -4,29 +4,28 @@ use serde::{Deserialize, Serialize};
 
 // API request/response types for Privy
 #[derive(Serialize)]
-pub struct SignTransactionRequest {
+pub struct SignMessageRequest {
     pub method: &'static str,
-    pub params: SignTransactionParams,
+    pub params: SignMessageParams,
 }
 
 #[derive(Serialize)]
-pub struct SignTransactionParams {
-    pub transaction: String,
+pub struct SignMessageParams {
+    pub message: String,
     pub encoding: &'static str,
 }
 
 #[derive(Deserialize)]
 #[allow(dead_code)]
-pub struct SignTransactionResponse {
+pub struct SignMessageResponse {
     pub method: String,
-    pub data: SignTransactionData,
+    pub data: SignMessageData,
 }
 
 #[derive(Deserialize)]
 #[allow(dead_code)]
-pub struct SignTransactionData {
-    #[serde(rename = "signed_transaction")]
-    pub signed_transaction: String,
+pub struct SignMessageData {
+    pub signature: String,
     pub encoding: String,
 }
 

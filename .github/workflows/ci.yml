@@ -26,6 +26,32 @@ jobs:
             cargo test --no-default-features --features ${{ matrix.backend }},sdk-v3,unsafe-debug
           fi
 
+  integration-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sdk_version: [v2, v3]
+        test: [test_privy_integration, test_turnkey_integration]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run ${{ matrix.test }} with SDK ${{ matrix.sdk_version }}
+        env:
+          PRIVY_APP_ID: ${{ secrets.PRIVY_APP_ID }}
+          PRIVY_APP_SECRET: ${{ secrets.PRIVY_APP_SECRET }}
+          PRIVY_WALLET_ID: ${{ secrets.PRIVY_WALLET_ID }}
+          TURNKEY_API_PUBLIC_KEY: ${{ secrets.TURNKEY_API_KEY }}
+          TURNKEY_API_PRIVATE_KEY: ${{ secrets.TURNKEY_API_PRIVATE_KEY }}
+          TURNKEY_ORGANIZATION_ID: ${{ secrets.TURNKEY_ORGANIZATION_ID }}
+          TURNKEY_PRIVATE_KEY_ID: ${{ secrets.TURNKEY_PRIVATE_KEY_ID }}
+          TURNKEY_PUBLIC_KEY: ${{ secrets.TURNKEY_SIGNER_PUBKEY }}
+        run: |
+          if [ "${{ matrix.sdk_version }}" = "v2" ]; then
+            cargo test --no-default-features --features all,sdk-v2,unsafe-debug,integration-tests tests::${{ matrix.test }}::
+          else
+            cargo test --no-default-features --features all,sdk-v3,unsafe-debug,integration-tests tests::${{ matrix.test }}::
+          fi
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +61,6 @@ jobs:
           components: rustfmt, clippy
       - run: cargo fmt --all -- --check
       - name: Clippy SDK v2
-        run: cargo clippy --all-targets --features all,sdk-v2,unsafe-debug -- -D warnings
+        run: cargo clippy --all-targets --features all,sdk-v2,unsafe-debug,integration-tests -- -D warnings
       - name: Clippy SDK v3
-        run: cargo clippy --all-targets --no-default-features --features all,sdk-v3,unsafe-debug -- -D warnings
+        run: cargo clippy --all-targets --no-default-features --features all,sdk-v3,unsafe-debug,integration-tests -- -D warnings

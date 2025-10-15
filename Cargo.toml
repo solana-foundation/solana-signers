@@ -26,6 +26,9 @@ sdk-v3 = ["dep:solana-sdk-v3"]
 # Only use for local development/debugging
 unsafe-debug = []
 
+# Integration tests (makes actual API calls, requires credentials)
+integration-tests = []
+
 [dependencies]
 # Solana SDK (version selected by feature flags)
 solana-sdk = { version = "2.3.0", optional = true }
@@ -55,3 +58,6 @@ base64 = "0.22.1"
 tokio = { version = "1.47", features = ["test-util", "macros", "rt"] }
 wiremock = "0.6"
 rand = "0.8.0"
+dotenvy = "0.15.7"
+litesvm = "0.7.0"
+litesvm-v3 = { package = "litesvm", version = "0.8.1" }
