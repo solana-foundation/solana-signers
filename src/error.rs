@@ -59,13 +59,6 @@ impl From<serde_json::Error> for SignerError {
     }
 }
 
-#[cfg(feature = "vault")]
-impl From<vaultrs::error::ClientError> for SignerError {
-    fn from(err: vaultrs::error::ClientError) -> Self {
-        SignerError::RemoteApiError(format!("Vault error: {}", err))
-    }
-}
-
 #[cfg(any(feature = "vault", feature = "privy", feature = "turnkey"))]
 impl From<reqwest::Error> for SignerError {
     fn from(err: reqwest::Error) -> Self {
