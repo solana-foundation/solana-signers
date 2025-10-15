@@ -26,7 +26,6 @@ pub async fn simulate_transaction(
     transaction: &Transaction,
 ) -> Result<(), Box<dyn Error>> {
     let tx_bytes = bincode::serialize(transaction).expect("Failed to serialize transaction");
-    // let tx_base64 = STANDARD.encode(&tx_bytes);
 
     let tx_for_litesvm: sdk_adapter::Transaction =
         bincode::deserialize(&tx_bytes).expect("Failed to deserialize transaction");
