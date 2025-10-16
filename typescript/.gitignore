@@ -5,6 +5,3 @@ dist
 coverage
 .env
 *.log
-
-# Script credentials
-scripts/.env

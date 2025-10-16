@@ -32,7 +32,7 @@ const transaction = pipe(
 );
 const signedTx = await signTransactionMessageWithSigners(transaction);
 ```
-(see [test-signer.ts](./scripts/test-signer.ts) for a complete example)
+(see [test-signer.ts](./examples/test-signer.ts) for a complete example)
 
 ## Packages
 

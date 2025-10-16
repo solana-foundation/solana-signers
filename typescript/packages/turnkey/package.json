@@ -44,6 +44,10 @@
         "@solana/signers": "^4.0.0",
         "@solana/transactions": "^4.0.0"
     },
+    "devDependencies": {
+        "@solana-signers/test-utils": "workspace:*",
+        "dotenv": "^17.2.3"
+    },
     "publishConfig": {
         "access": "public"
     }
