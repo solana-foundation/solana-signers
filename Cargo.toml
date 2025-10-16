@@ -12,7 +12,7 @@ default = ["memory", "sdk-v2"]
 
 # Signer backends
 memory = []
-vault = ["dep:reqwest", "dep:vaultrs"]
+vault = ["dep:reqwest"]
 privy = ["dep:reqwest"]
 turnkey = ["dep:reqwest", "dep:p256", "dep:hex", "dep:chrono"]
 all = ["memory", "vault", "privy", "turnkey"]
@@ -45,7 +45,6 @@ bs58 = "0.5.1"
 
 # Optional dependencies (feature-gated)
 reqwest = { version = "0.12.23", optional = true, features = ["json"] }
-vaultrs = { version = "0.7.4", optional = true }
 p256 = { version = "0.13.2", optional = true }
 hex = { version = "0.4.3", optional = true }
 chrono = { version = "0.4.42", optional = true }
