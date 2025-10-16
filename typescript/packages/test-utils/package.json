@@ -1,20 +1,19 @@
 {
-    "name": "@solana-signers/privy",
+    "name": "@solana-signers/test-utils",
     "author": "Solana Foundation",
-    "version": "0.1.0",
-    "description": "Privy-based signer for Solana transactions",
     "license": "MIT",
     "repository": "https://github.com/solana-foundation/solana-signers",
+    "version": "0.1.0",
+    "description": "Shared testing utilities for Solana signer integration tests",
     "keywords": [
         "solana",
-        "signing",
-        "wallet",
-        "privy",
-        "vault",
-        "turnkey"
+        "testing",
+        "integration-tests",
+        "litesvm"
     ],
     "type": "module",
     "sideEffects": false,
+    "private": true,
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
@@ -30,25 +29,15 @@
     "scripts": {
         "build": "tsc --build",
         "clean": "rm -rf dist *.tsbuildinfo",
-        "test": "vitest run",
-        "test:watch": "vitest",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
+        "@solana-program/memo": "^0.8.0",
         "@solana-signers/core": "workspace:*",
-        "@solana/addresses": "^4.0.0",
-        "@solana/codecs-core": "^4.0.0",
-        "@solana/codecs-strings": "^4.0.0",
-        "@solana/keys": "^4.0.0",
-        "@solana/signers": "^4.0.0",
-        "@solana/transactions": "^4.0.0"
-    },
-    "publishConfig": {
-        "access": "public"
+        "@solana/kit": "^4.0.0",
+        "litesvm": "^0.3.3"
     },
     "devDependencies": {
-        "@solana-signers/test-utils": "workspace:*",
-        "@solana/nominal-types": "^4.0.0",
-        "dotenv": "^17.2.3"
+        "@types/node": "^24.7.1"
     }
 }

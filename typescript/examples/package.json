@@ -1,23 +1,27 @@
 {
-  "name": "@solana-signers/scripts",
+  "name": "@solana-signers/example",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test:privy": "SIGNER_TYPE=privy tsx test-signer.ts",
     "test:turnkey": "SIGNER_TYPE=turnkey tsx test-signer.ts",
-    "test:keypair": "SIGNER_TYPE=keypair tsx test-signer.ts"
+    "test:keypair": "SIGNER_TYPE=keypair tsx test-signer.ts",
+    "test:lite:keypair": "SIGNER_TYPE=keypair tsx test-signer-lite.ts",
+    "test:lite:privy": "SIGNER_TYPE=privy tsx test-signer-lite.ts",
+    "test:lite:turnkey": "SIGNER_TYPE=turnkey tsx test-signer-lite.ts"
   },
   "dependencies": {
+    "@solana-signers/core": "workspace:*",
     "@solana-signers/privy": "workspace:*",
-    "@solana-signers/turnkey": "workspace:*",
-    "@solana-signers/core": "workspace:*"
+    "@solana-signers/turnkey": "workspace:*"
   },
   "devDependencies": {
     "@solana-program/memo": "^0.8.0",
     "@solana/kit": "^4.0.0",
     "@types/node": "^24.7.1",
     "dotenv": "^17.2.3",
+    "litesvm": "^0.3.3",
     "tsx": "^4.20.6"
   }
 }
