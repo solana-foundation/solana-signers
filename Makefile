@@ -1,6 +1,6 @@
 .PHONY: fmt build test
 
-INTEGRATION_TESTS := test_privy_integration test_turnkey_integration
+INTEGRATION_TESTS := test_privy_integration test_turnkey_integration test_vault_integration
 SDKV2_ALL_FEATURES := all,sdk-v2,unsafe-debug,integration-tests
 SDKV3_ALL_FEATURES := all,sdk-v3,unsafe-debug,integration-tests
 
