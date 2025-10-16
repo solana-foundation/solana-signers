@@ -4,7 +4,7 @@ import { getConfig } from './setup';
 import { config } from 'dotenv';
 config();
 
-describe('PrivySigner Integration', () => {
+describe('TurnkeySigner Integration', () => {
     it.skipIf(!process.env.TURNKEY_API_PUBLIC_KEY)('signs transactions with real API', async () => {
         await runSignerIntegrationTest(await getConfig(['signTransaction']));
     });
