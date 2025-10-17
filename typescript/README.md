@@ -41,6 +41,7 @@ const signedTx = await signTransactionMessageWithSigners(transaction);
 | [@solana-signers/core](./packages/core) | Core interfaces, types, and utilities for building custom signers |
 | [@solana-signers/privy](./packages/privy) | Privy wallet signer implementation |
 | [@solana-signers/turnkey](./packages/turnkey) | Turnkey wallet signer implementation |
+| [@solana-signers/vault](./packages/vault) | Vault wallet signer implementation |
 
 ## Installation
 
