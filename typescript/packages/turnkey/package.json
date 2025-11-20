@@ -37,12 +37,12 @@
     "dependencies": {
         "@noble/curves": "^2.0.1",
         "@solana-signers/core": "workspace:*",
-        "@solana/addresses": "^4.0.0",
-        "@solana/codecs-core": "^4.0.0",
-        "@solana/codecs-strings": "^4.0.0",
-        "@solana/keys": "^4.0.0",
-        "@solana/signers": "^4.0.0",
-        "@solana/transactions": "^4.0.0"
+        "@solana/addresses": "^5.0.0",
+        "@solana/codecs-core": "^5.0.0",
+        "@solana/codecs-strings": "^5.0.0",
+        "@solana/keys": "^5.0.0",
+        "@solana/signers": "^5.0.0",
+        "@solana/transactions": "^5.0.0"
     },
     "devDependencies": {
         "@solana-signers/test-utils": "workspace:*",
