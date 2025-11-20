@@ -2,12 +2,7 @@ import { SignerTestConfig, TestScenario } from '@solana-signers/test-utils';
 import { VaultSigner } from '../vault-signer';
 
 const SIGNER_TYPE = 'vault';
-const REQUIRED_ENV_VARS = [
-    'VAULT_ADDR',
-    'VAULT_TOKEN',
-    'VAULT_KEY_NAME',
-    'VAULT_SIGNER_PUBKEY',
-];
+const REQUIRED_ENV_VARS = ['VAULT_ADDR', 'VAULT_TOKEN', 'VAULT_KEY_NAME', 'VAULT_SIGNER_PUBKEY'];
 
 async function createVaultSigner(): Promise<VaultSigner> {
     return new VaultSigner({
