@@ -9,6 +9,9 @@ on:
 jobs:
   typescript-test-unit:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: typescript
     strategy:
       matrix:
         package: [vault, privy, turnkey]
@@ -29,6 +32,9 @@ jobs:
 
   typescript-test-integration:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: typescript
     strategy:
       matrix:
         package: [privy, turnkey]
@@ -60,6 +66,9 @@ jobs:
 
   typescript-lint:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: typescript
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
