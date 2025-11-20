@@ -11,6 +11,8 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "test:unit": "pnpm -r test:unit",
+    "test:integration": "pnpm -r test:integration",
     "lint": "eslint packages --ext .ts",
     "format": "prettier --write \"packages/**/*.{ts,json,md}\"",
     "format:check": "prettier --check \"packages/**/*.{ts,json,md}\"",

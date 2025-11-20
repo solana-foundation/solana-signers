@@ -1,0 +1,78 @@
+name: TypeScript CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typescript-test-unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [vault, privy, turnkey]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 10.14.0
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build packages
+        run: pnpm build
+      - name: Run unit tests for @solana-signers/${{ matrix.package }}
+        run: pnpm -F @solana-signers/${{ matrix.package }} run test:unit
+
+  typescript-test-integration:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [privy, turnkey]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 10.14.0
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build packages
+        run: pnpm build
+      - name: Run integration tests for @solana-signers/${{ matrix.package }}
+        env:
+          # Privy
+          PRIVY_APP_ID: ${{ secrets.PRIVY_APP_ID }}
+          PRIVY_APP_SECRET: ${{ secrets.PRIVY_APP_SECRET }}
+          PRIVY_WALLET_ID: ${{ secrets.PRIVY_WALLET_ID }}
+          # Turnkey
+          TURNKEY_API_PUBLIC_KEY: ${{ secrets.TURNKEY_API_PUBLIC_KEY }}
+          TURNKEY_API_PRIVATE_KEY: ${{ secrets.TURNKEY_API_PRIVATE_KEY }}
+          TURNKEY_ORGANIZATION_ID: ${{ secrets.TURNKEY_ORGANIZATION_ID }}
+          TURNKEY_PRIVATE_KEY_ID: ${{ secrets.TURNKEY_PRIVATE_KEY_ID }}
+          TURNKEY_PUBLIC_KEY: ${{ secrets.TURNKEY_PUBLIC_KEY }}
+        run: pnpm -F @solana-signers/${{ matrix.package }} run test:integration
+
+  typescript-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 10.14.0
+      - name: Install dependencies
+        run: pnpm install
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Format check
+        run: pnpm format:check
